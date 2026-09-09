@@ -1,26 +1,215 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0a1628;
+  
+  /* Navy palette */
+  --navy-950: #06101f;
+  --navy-900: #0a1628;
+  --navy-800: #122240;
+  --navy-700: #1e3a5f;
+  --navy-600: #2a4a6e;
+  --navy-500: #3b5f8a;
+  --navy-400: #5a7da8;
+  --navy-300: #8ba4c4;
+  --navy-200: #bbc8dd;
+  --navy-100: #dde4ef;
+  --navy-50: #eef2f7;
+
+  /* Teal / Primary accent */
+  --teal-700: #0f766e;
+  --teal-600: #0d9488;
+  --teal-500: #14b8a6;
+  --teal-400: #2dd4bf;
+  --teal-300: #5eead4;
+  --teal-200: #99f6e4;
+  --teal-100: #ccfbf1;
+  --teal-50: #f0fdfa;
+
+  /* Cyan highlights */
+  --cyan-500: #06b6d4;
+  --cyan-400: #22d3ee;
+
+  /* Status colors */
+  --green-600: #16a34a;
+  --green-500: #22c55e;
+  --green-100: #dcfce7;
+  --green-50: #f0fdf4;
+
+  --amber-600: #d97706;
+  --amber-500: #f59e0b;
+  --amber-100: #fef3c7;
+  --amber-50: #fffbeb;
+
+  --red-600: #dc2626;
+  --red-500: #ef4444;
+  --red-100: #fee2e2;
+  --red-50: #fef2f2;
+
+  --blue-500: #3b82f6;
+  --blue-100: #dbeafe;
+
+  /* Grays */
+  --gray-50: #f8fafc;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
+
+  /* Spacing */
+  --sidebar-width: 200px;
+  --header-height: 56px;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-navy-950: var(--navy-950);
+  --color-navy-900: var(--navy-900);
+  --color-navy-800: var(--navy-800);
+  --color-navy-700: var(--navy-700);
+  --color-navy-600: var(--navy-600);
+  --color-navy-500: var(--navy-500);
+  --color-navy-400: var(--navy-400);
+  --color-navy-300: var(--navy-300);
+  --color-navy-200: var(--navy-200);
+  --color-navy-100: var(--navy-100);
+  --color-navy-50: var(--navy-50);
+  --color-teal-700: var(--teal-700);
+  --color-teal-600: var(--teal-600);
+  --color-teal-500: var(--teal-500);
+  --color-teal-400: var(--teal-400);
+  --color-teal-300: var(--teal-300);
+  --color-teal-200: var(--teal-200);
+  --color-teal-100: var(--teal-100);
+  --color-teal-50: var(--teal-50);
+  --color-cyan-500: var(--cyan-500);
+  --color-cyan-400: var(--cyan-400);
+  --color-green-600: var(--green-600);
+  --color-green-500: var(--green-500);
+  --color-green-100: var(--green-100);
+  --color-green-50: var(--green-50);
+  --color-amber-600: var(--amber-600);
+  --color-amber-500: var(--amber-500);
+  --color-amber-100: var(--amber-100);
+  --color-amber-50: var(--amber-50);
+  --color-red-600: var(--red-600);
+  --color-red-500: var(--red-500);
+  --color-red-100: var(--red-100);
+  --color-red-50: var(--red-50);
+  --color-blue-500: var(--blue-500);
+  --color-blue-100: var(--blue-100);
+  --color-gray-50: var(--gray-50);
+  --color-gray-100: var(--gray-100);
+  --color-gray-200: var(--gray-200);
+  --color-gray-300: var(--gray-300);
+  --color-gray-400: var(--gray-400);
+  --color-gray-500: var(--gray-500);
+  --color-gray-600: var(--gray-600);
+  --color-gray-700: var(--gray-700);
+  --color-gray-800: var(--gray-800);
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ── Base ──────────────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gray-300);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-400);
+}
+
+/* ── Leaflet overrides ─────────────────────────────────── */
+
+.leaflet-container {
+  font-family: 'Inter', system-ui, sans-serif !important;
+  background: #e8ecf1;
+}
+
+.leaflet-control-zoom a {
+  font-family: 'Inter', system-ui, sans-serif !important;
+  color: var(--navy-700) !important;
+  border-color: var(--gray-200) !important;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  font-family: 'Inter', system-ui, sans-serif !important;
+}
+
+.leaflet-popup-content {
+  margin: 10px 14px !important;
+  font-size: 13px !important;
+}
+
+/* ── Animations ────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-slide-in {
+  animation: slideInRight 0.3s ease-out forwards;
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ── Pipeline step animation ───────────────────────────── */
+
+@keyframes pipeline-progress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+.pipeline-step-active .pipeline-bar {
+  animation: pipeline-progress 0.6s ease-out forwards;
 }

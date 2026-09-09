@@ -30,6 +30,7 @@ export interface MarineCondition {
   statusColor: 'green' | 'amber' | 'red' | 'blue' | 'gray';
   icon: string;
   detail?: string;
+  source?: string;
 }
 
 // ── Safety Assessment ───────────────────────────────────────

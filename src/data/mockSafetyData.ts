@@ -1,0 +1,216 @@
+import { SafetyAssessment } from '@/types';
+
+export const safetyAssessments: Record<'low' | 'moderate' | 'high', SafetyAssessment> = {
+  low: {
+    riskLevel: 'low',
+    riskScore: 18,
+    maxScore: 100,
+    area: 'Sector 4',
+    validityPeriod: 'Tomorrow 05:00–11:00 IST',
+    verdictTitle: 'VERDICT: SAFE TO OPERATE',
+    verdictSubtitle: 'LOW RISK — CONDITIONS SUITABLE',
+    description:
+      'Sector 4 currently shows suitable conditions for fishing during the selected morning window (05:00–11:00 IST). Mechanized & motorized craft may execute departures safely.',
+    factors: [
+      {
+        id: 'waves',
+        label: 'factor_waves',
+        value: '1.8 m — Acceptable',
+        status: 'Threshold < 2.2m',
+        statusColor: 'green',
+        icon: 'waves',
+      },
+      {
+        id: 'wind',
+        label: 'factor_wind',
+        value: '14 kt SW — Moderate',
+        status: 'Safe to 18 kt',
+        statusColor: 'green',
+        icon: 'wind',
+      },
+      {
+        id: 'lightning',
+        label: 'factor_lightning',
+        value: 'Clear',
+        status: 'No alert in 32km',
+        statusColor: 'green',
+        icon: 'zap',
+      },
+      {
+        id: 'cyclone',
+        label: 'factor_cyclone',
+        value: 'Clear',
+        status: 'No depression',
+        statusColor: 'green',
+        icon: 'tornado',
+      },
+      {
+        id: 'rain',
+        label: 'factor_rain',
+        value: '0 mm — Clear',
+        status: 'Vis. > 8 NM',
+        statusColor: 'green',
+        icon: 'cloudRain',
+      },
+      {
+        id: 'geofence',
+        label: 'factor_geofence',
+        value: 'Clear',
+        status: 'Buffer > 3.5 NM',
+        statusColor: 'green',
+        icon: 'shield',
+      },
+    ],
+    reasoning: [
+      'Wave conditions remain within the selected operating threshold (<2.2m).',
+      'Wind conditions are moderate with no severe-weather convective trend detected.',
+      'No active lightning/cyclone alert or geofence boundary conflict detected.',
+    ],
+    recommendation:
+      'Fishing conditions are currently suitable for Sector 4. Continue monitoring official marine advisories before departure.',
+    disclaimer:
+      'AI assessment based on available environmental data. Check the latest official marine advisory before departure.',
+  },
+  moderate: {
+    riskLevel: 'moderate',
+    riskScore: 52,
+    maxScore: 100,
+    area: 'Sector 4',
+    validityPeriod: 'Tomorrow 05:00–11:00 IST',
+    verdictTitle: 'VERDICT: EXERCISE CAUTION',
+    verdictSubtitle: 'CAUTION ADVISED — CONDITIONS REQUIRE CAUTION',
+    description:
+      'Sector 4 shows mixed conditions. Some factors are within acceptable limits, but elevated wave and wind conditions require extra caution.',
+    factors: [
+      {
+        id: 'waves',
+        label: 'factor_waves',
+        value: '2.1 m — Elevated',
+        status: 'Near threshold',
+        statusColor: 'amber',
+        icon: 'waves',
+      },
+      {
+        id: 'wind',
+        label: 'factor_wind',
+        value: '18 kt SW — Strong',
+        status: 'At limit',
+        statusColor: 'amber',
+        icon: 'wind',
+      },
+      {
+        id: 'lightning',
+        label: 'factor_lightning',
+        value: 'Clear',
+        status: 'No alert',
+        statusColor: 'green',
+        icon: 'zap',
+      },
+      {
+        id: 'cyclone',
+        label: 'factor_cyclone',
+        value: 'Clear',
+        status: 'No depression',
+        statusColor: 'green',
+        icon: 'tornado',
+      },
+      {
+        id: 'rain',
+        label: 'factor_rain',
+        value: '5 mm — Light',
+        status: 'Reduced visibility',
+        statusColor: 'amber',
+        icon: 'cloudRain',
+      },
+      {
+        id: 'geofence',
+        label: 'factor_geofence',
+        value: 'Clear',
+        status: 'Buffer > 3.5 NM',
+        statusColor: 'green',
+        icon: 'shield',
+      },
+    ],
+    reasoning: [
+      'Wave height is approaching the recommended operating threshold.',
+      'Wind speeds are at the upper limit for safe operation.',
+      'Light precipitation may reduce visibility in some areas.',
+    ],
+    recommendation:
+      'Conditions require caution. Only experienced operators with appropriately rated vessels should consider departure. Monitor conditions closely.',
+    disclaimer:
+      'AI assessment based on available environmental data. Check the latest official marine advisory before departure.',
+  },
+  high: {
+    riskLevel: 'high',
+    riskScore: 78,
+    maxScore: 100,
+    area: 'Sector 4',
+    validityPeriod: 'Tomorrow 05:00–11:00 IST',
+    verdictTitle: 'VERDICT: DO NOT OPERATE',
+    verdictSubtitle: 'NOT RECOMMENDED — FISHING NOT RECOMMENDED',
+    description:
+      'Sector 4 shows hazardous conditions. Multiple risk factors exceed safe operating thresholds. Fishing is not recommended during this period.',
+    factors: [
+      {
+        id: 'waves',
+        label: 'factor_waves',
+        value: '3.2 m — Dangerous',
+        status: 'Above threshold',
+        statusColor: 'red',
+        icon: 'waves',
+      },
+      {
+        id: 'wind',
+        label: 'factor_wind',
+        value: '28 kt SW — Strong',
+        status: 'Exceeds limit',
+        statusColor: 'red',
+        icon: 'wind',
+      },
+      {
+        id: 'lightning',
+        label: 'factor_lightning',
+        value: 'Active Alert',
+        status: '12 km SE',
+        statusColor: 'red',
+        icon: 'zap',
+      },
+      {
+        id: 'cyclone',
+        label: 'factor_cyclone',
+        value: 'Depression',
+        status: 'Monitoring',
+        statusColor: 'amber',
+        icon: 'tornado',
+      },
+      {
+        id: 'rain',
+        label: 'factor_rain',
+        value: '25 mm — Heavy',
+        status: 'Poor visibility',
+        statusColor: 'red',
+        icon: 'cloudRain',
+      },
+      {
+        id: 'geofence',
+        label: 'factor_geofence',
+        value: 'Clear',
+        status: 'Buffer > 3.5 NM',
+        statusColor: 'green',
+        icon: 'shield',
+      },
+    ],
+    reasoning: [
+      'Wave conditions significantly exceed safe operating threshold.',
+      'Strong winds and lightning activity create dangerous conditions.',
+      'Heavy precipitation severely reduces visibility.',
+    ],
+    recommendation:
+      'Fishing is not recommended during this period. Conditions pose significant risk to vessel safety. Wait for conditions to improve and check official advisories.',
+    disclaimer:
+      'AI assessment based on available environmental data. Check the latest official marine advisory before departure.',
+  },
+};
+
+export const currentSafetyAssessment = safetyAssessments.low;
