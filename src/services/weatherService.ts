@@ -1,20 +1,33 @@
 import { OpenMeteoWeatherResponse } from '@/types/openMeteo';
+import { FASTAPI_BASE_URL } from '@/config/api';
 
 const OPEN_METEO_WEATHER_BASE_URL = 'https://api.open-meteo.com/v1/forecast';
 
-export const DEFAULT_MUMBAI_COORDS = {
-  latitude: 19.0760,
-  longitude: 72.8777,
-};
+
+/**
+ * Fetch weather from ORCA FastAPI backend (http://localhost:8000/api/weather)
+ */
+export async function fetchFastAPIWeather(lat: number, lon: number) {
+  if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) {
+    throw new Error(`Invalid coordinates passed to fetchFastAPIWeather: lat=${lat}, lon=${lon}`);
+  }
+  const response = await fetch(`${FASTAPI_BASE_URL}/api/weather?latitude=${lat}&longitude=${lon}`, {
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    throw new Error(`FastAPI /api/weather returned HTTP ${response.status}`);
+  }
+  return response.json();
+}
 
 /**
  * Fetch real weather data from Open-Meteo Forecast API
  * No API key required.
  */
-export async function fetchWeatherForecast(
-  lat: number = DEFAULT_MUMBAI_COORDS.latitude,
-  lon: number = DEFAULT_MUMBAI_COORDS.longitude
-): Promise<OpenMeteoWeatherResponse> {
+export async function fetchWeatherForecast(lat: number, lon: number): Promise<OpenMeteoWeatherResponse> {
+  if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) {
+    throw new Error(`Invalid coordinates passed to fetchWeatherForecast: lat=${lat}, lon=${lon}`);
+  }
   const params = new URLSearchParams({
     latitude: lat.toString(),
     longitude: lon.toString(),
@@ -39,8 +52,7 @@ export async function fetchWeatherForecast(
   });
 
   const response = await fetch(`${OPEN_METEO_WEATHER_BASE_URL}?${params.toString()}`, {
-    // Cache for 10 minutes in Next.js
-    next: { revalidate: 600 },
+    cache: 'no-store',
   });
 
   if (!response.ok) {

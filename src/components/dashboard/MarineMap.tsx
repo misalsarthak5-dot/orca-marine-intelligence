@@ -8,21 +8,24 @@ import {
   Crosshair,
   Layers,
   Navigation,
+  Info,
 } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
+import { useLocation } from '@/lib/location';
 import { MapLayerType } from '@/types';
-import { pfzZones } from '@/data/mockPFZData';
-import { avoidZones, recommendedRoute } from '@/data/mockRoutes';
 
 interface MarineMapProps {
   activeLayers: MapLayerType[];
   onToggleLayer: (layer: MapLayerType) => void;
+  /** Live hazard severity from the MarineHazardsAlerts card */
+  hazardCode?: 'clear' | 'caution' | 'high';
 }
 
 const layerConfig: { id: MapLayerType; label: string; color: string }[] = [
   { id: 'pfz', label: 'PFZ', color: 'bg-green-500' },
-  { id: 'weather', label: 'Weather', color: 'bg-blue-500' },
+  { id: 'hazards', label: 'Hazards', color: 'bg-amber-500' },
   { id: 'sst', label: 'SST', color: 'bg-orange-500' },
+  { id: 'weather', label: 'Weather', color: 'bg-blue-500' },
   { id: 'chlorophyll', label: 'Chlorophyll+', color: 'bg-emerald-500' },
   { id: 'risk', label: 'Risk', color: 'bg-red-500' },
   { id: 'geofence', label: 'Geofence', color: 'bg-purple-500' },
@@ -32,8 +35,9 @@ const layerConfig: { id: MapLayerType; label: string; color: string }[] = [
 // Dynamic import for Leaflet - only loads on client
 const LeafletMap = React.lazy(() => import('./LeafletMap'));
 
-export default function MarineMap({ activeLayers, onToggleLayer }: MarineMapProps) {
+export default function MarineMap({ activeLayers, onToggleLayer, hazardCode = 'caution' }: MarineMapProps) {
   const { t } = useTranslation();
+  const { selectedLocation } = useLocation();
   const [isClient, setIsClient] = useState(false);
   const [mapControls, setMapControls] = useState<{
     zoomIn: () => void;
@@ -45,36 +49,39 @@ export default function MarineMap({ activeLayers, onToggleLayer }: MarineMapProp
     setIsClient(true);
   }, []);
 
+  const showSstLegend = activeLayers.includes('sst');
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col">
+    <div id="orca-marine-map" className="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col scroll-mt-4">
       {/* Title bar */}
       <div className="px-4 py-2.5 border-b border-gray-100 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-teal-600 bg-teal-50 px-2 py-0.5 rounded uppercase tracking-wider border border-teal-100">
-              {t('map_assessedArea')} 4
+              {t('map_assessedArea')}
             </span>
-            <h3 className="text-[13px] font-bold text-navy-900">{t('map_title')}</h3>
+            <h3 className="text-[13px] font-bold text-navy-900">{selectedLocation.name} • Coastal Intelligence</h3>
           </div>
-          <p className="text-[10px] text-gray-400 font-medium tracking-wider uppercase mt-0.5">
-            {t('map_subtitle')}
+          <p className="text-[10px] text-teal-700 font-semibold tracking-wider mt-0.5">
+            {selectedLocation.name} • {selectedLocation.latitude.toFixed(4)}°N, {selectedLocation.longitude.toFixed(4)}°E
           </p>
         </div>
         <div className="flex items-center gap-1">
           <Navigation size={12} className="text-teal-500" />
           <span className="text-[10px] text-gray-500 font-mono">
-            LAT: 18°54&apos;12&quot;N | LON: 72°41&apos;56&quot;E | HDG: 240° • 8.2 KTS
+            LAT: {selectedLocation.latitude.toFixed(4)}°N | LON: {selectedLocation.longitude.toFixed(4)}°E
           </span>
         </div>
       </div>
 
       {/* Layer toggles */}
-      <div className="px-4 py-2 border-b border-gray-50 flex items-center gap-1.5">
+      <div className="px-4 py-2 border-b border-gray-50 flex items-center gap-1.5 flex-wrap">
         {layerConfig.map((layer) => {
           const active = activeLayers.includes(layer.id);
           return (
             <button
               key={layer.id}
+              title={layer.label}
               onClick={() => onToggleLayer(layer.id)}
               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
                 active
@@ -87,6 +94,17 @@ export default function MarineMap({ activeLayers, onToggleLayer }: MarineMapProp
             </button>
           );
         })}
+      </div>
+
+      {/* Location telemetry source notice */}
+      <div className="px-4 py-2 bg-teal-50 border-b border-teal-200/80 flex items-center justify-between gap-2 text-[11px] text-teal-900">
+        <div className="flex items-center gap-1.5 font-medium">
+          <Info size={14} className="text-teal-600 flex-shrink-0" />
+          <span>Official INCOIS PFZ Advisories, SST, and Marine Hazards active for {selectedLocation.name}.</span>
+        </div>
+        <span className="text-[10px] bg-teal-100 text-teal-800 font-semibold px-2 py-0.5 rounded border border-teal-200">
+          INCOIS & Open-Meteo
+        </span>
       </div>
 
       {/* Map container */}
@@ -143,29 +161,32 @@ export default function MarineMap({ activeLayers, onToggleLayer }: MarineMapProp
               </div>
             }
           >
-            <LeafletMap activeLayers={activeLayers} onMapReady={setMapControls} />
+            <LeafletMap selectedLocation={selectedLocation} activeLayers={activeLayers} onMapReady={setMapControls} hazardCode={hazardCode} />
           </React.Suspense>
         )}
 
         {/* Legend overlay */}
-        <div className="absolute bottom-3 left-3 z-[1000] bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
-          <div className="flex items-center gap-3 text-[10px]">
-            <span className="flex items-center gap-1">
-              <span className="w-3 h-2 rounded-sm bg-green-500/60 border border-green-600/30" />
-              PFZ High Density
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-3 h-2 rounded-sm bg-yellow-500/60 border border-yellow-600/30" />
-              PFZ Moderate
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-6 h-0.5 bg-teal-500" />
-              Safe Corridor
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-3 h-2 rounded-sm bg-red-500/30 border border-red-500/50" />
-              Risk Zone
-            </span>
+        <div className="absolute bottom-3 left-3 z-[1000] bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg px-3 py-2 shadow-sm space-y-1.5">
+          {showSstLegend && (
+            <div className="flex items-center gap-2 text-[10px] pb-1 border-b border-gray-100">
+              <span className="font-bold text-navy-900">Sea Surface Temp:</span>
+              <span className="text-blue-600 font-medium">Cooler</span>
+              <div
+                className="h-1.5 w-16 rounded-full"
+                style={{
+                  background: 'linear-gradient(to right, #3b82f6, #06b6d4, #10b981, #f59e0b, #ef4444)',
+                }}
+              />
+              <span className="text-rose-600 font-medium">Warmer</span>
+              <span className="text-gray-400 text-[8px]">(Open-Meteo)</span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 text-[10px] text-gray-600">
+            <span className="w-2 h-2 rounded-full bg-teal-500" />
+            <span className="font-semibold text-teal-800">{selectedLocation.name} Active</span>
+            <span className="text-gray-300">•</span>
+            <span className="text-gray-500">Official INCOIS PFZ Vectors & Open-Meteo Telemetry</span>
           </div>
         </div>
       </div>

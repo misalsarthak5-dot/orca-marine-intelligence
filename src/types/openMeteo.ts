@@ -74,9 +74,22 @@ export interface OpenMeteoMarineResponse {
  * Combined live marine and weather dataset for ORCA
  */
 export interface OrcaLiveMarineData {
-  source: 'open-meteo' | 'mock-fallback';
+  source: 'fastapi' | 'open-meteo' | 'mock-fallback';
   isLive: boolean;
   fetchedAt: string;
+  fastapiSafety?: {
+    risk_level: string;
+    status: string;
+    recommendation: string;
+    factors: Array<{
+      factor: string;
+      label: string;
+      value: string;
+      risk: string;
+      status: string;
+      threshold: string;
+    }>;
+  };
   coordinates: {
     lat: number;
     lon: number;

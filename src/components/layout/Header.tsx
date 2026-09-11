@@ -3,6 +3,7 @@
 import React from 'react';
 import { Bell, User, Clock, Shield, Globe } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
+import { useLocation } from '@/lib/location';
 import { Language } from '@/types';
 
 const languages: { code: Language; label: string }[] = [
@@ -13,6 +14,19 @@ const languages: { code: Language; label: string }[] = [
 
 export default function Header() {
   const { language, setLanguage, t } = useTranslation();
+  const { selectedLocation, safetyAssessment, lastUpdated, isLoading } = useLocation();
+
+  const isHigh = safetyAssessment?.riskLevel === 'high';
+  const isCaution = safetyAssessment?.riskLevel === 'moderate';
+
+  const riskBadgeClass = isHigh
+    ? 'bg-red-100 text-red-700'
+    : isCaution
+    ? 'bg-amber-100 text-amber-700'
+    : 'bg-green-100 text-green-700';
+
+  const riskBadgeText = isHigh ? 'HIGH RISK' : isCaution ? 'CAUTION' : 'LOW RISK';
+  const riskScore = isHigh ? '78 / 100' : isCaution ? '48 / 100' : '18 / 100';
 
   return (
     <header className="h-14 bg-white border-b border-gray-200 flex items-center px-5 gap-4 z-30">
@@ -22,10 +36,12 @@ export default function Header() {
           <h2 className="text-sm font-semibold text-navy-900 truncate">{t('header_greeting')}</h2>
           <span className="text-[11px] text-gray-400 flex items-center gap-1">
             <Clock size={11} />
-            09:42 IST | UTC+5:30
+            {lastUpdated ? lastUpdated : '09:42 IST'} | UTC+5:30
           </span>
         </div>
-        <p className="text-[11px] text-gray-500 truncate">{t('header_subtitle')}</p>
+        <p className="text-[11px] text-gray-500 truncate">
+          {selectedLocation.name} • {t('header_subtitle')}
+        </p>
       </div>
 
       {/* Center: Fishing Safety Banner */}
@@ -34,11 +50,13 @@ export default function Header() {
           <Shield size={14} className="text-teal-600 flex-shrink-0" />
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold text-teal-700 uppercase tracking-wide">{t('header_fishingSafety')}</span>
-            <span className="text-[9px] bg-green-100 text-green-700 font-bold px-1.5 py-0.5 rounded uppercase">LOW RISK</span>
-            <span className="text-[10px] text-navy-600 font-semibold">18 / 100</span>
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${riskBadgeClass}`}>
+              {riskBadgeText}
+            </span>
+            <span className="text-[10px] text-navy-600 font-semibold">{riskScore}</span>
           </div>
           <div className="border-l border-teal-200 pl-2.5 ml-1">
-            <p className="text-[10px] text-gray-500">{t('header_validTomorrow')}</p>
+            <p className="text-[10px] text-gray-500">{selectedLocation.name} • {t('header_validTomorrow')}</p>
           </div>
         </div>
       </div>
@@ -46,8 +64,8 @@ export default function Header() {
       {/* Right: Controls */}
       <div className="flex items-center gap-3 flex-shrink-0">
         {/* Last updated */}
-        <span className="text-[10px] text-gray-400">
-          {t('header_lastUpdated')}: 09:42 IST
+        <span className="text-[10px] text-gray-400 font-mono">
+          {t('header_lastUpdated')}: {isLoading ? 'Updating...' : (lastUpdated || '09:42 IST')}
         </span>
 
         {/* Language selector */}

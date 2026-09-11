@@ -15,7 +15,8 @@ export type MapLayerType =
   | 'chlorophyll'
   | 'risk'
   | 'geofence'
-  | 'route';
+  | 'route'
+  | 'hazards';
 
 // ── Marine Conditions ───────────────────────────────────────
 
@@ -95,6 +96,50 @@ export interface MarineAlert {
   coordinates?: [number, number];
 }
 
+export type HazardSeverity = 'normal' | 'caution' | 'high' | 'unavailable';
+
+export interface HazardCondition {
+  id: string;
+  name: string;
+  icon: string;
+  value: string;
+  peak_gusts?: string;
+  numeric_value?: number;
+  unit: string;
+  status: string;
+  severity: HazardSeverity;
+  is_active: boolean;
+  threshold: string;
+  explanation: string;
+}
+
+export interface HazardActiveAlert {
+  type: string;
+  severity: 'caution' | 'high';
+  label: string;
+  description: string;
+}
+
+export interface HazardAssessment {
+  coordinates: { latitude: number; longitude: number };
+  overall_state: 'NO SIGNIFICANT HAZARDS' | 'CAUTION' | 'HIGH ALERT';
+  overall_code: 'clear' | 'caution' | 'high';
+  headline: string;
+  active_conditions_count: number;
+  active_alerts: HazardActiveAlert[];
+  conditions: HazardCondition[];
+  telemetry_snapshot?: {
+    wave_height_m?: number;
+    wave_period_s?: number;
+    wind_speed_kts?: number;
+    wind_gusts_kts?: number;
+    precipitation_mm?: number;
+    sst_c?: number;
+    timestamp?: string;
+  };
+  disclaimer: string;
+}
+
 // ── Route Recommendations ───────────────────────────────────
 
 export interface RouteWaypoint {
@@ -140,6 +185,12 @@ export interface EvidenceSource {
 export interface ChatAttachment {
   type: 'safety' | 'map' | 'chart' | 'pfz' | 'route';
   label: string;
+  layers?: MapLayerType[];
+}
+
+export interface WorkflowStage {
+  stage: string;
+  detail: string;
 }
 
 export interface ChatMessage {
@@ -147,10 +198,13 @@ export interface ChatMessage {
   role: 'user' | 'orca';
   content: string;
   timestamp: string;
-  riskLevel?: RiskLevel;
+  intent?: string;
+  riskLevel?: RiskLevel | string;
   verdictTitle?: string;
   factors?: SafetyFactor[];
   recommendation?: string;
+  workflowStages?: WorkflowStage[];
+  mapActions?: MapLayerType[];
   attachments?: ChatAttachment[];
   pfz?: PFZZone;
   avoidanceZones?: { label: string; reason: string }[];

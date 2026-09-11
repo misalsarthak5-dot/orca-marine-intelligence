@@ -21,7 +21,7 @@ export const marineConditions: MarineCondition[] = [
     status: 'Dense Biomass',
     statusColor: 'green',
     icon: 'leaf',
-    detail: 'Stable',
+    detail: 'Demo / Satellite Dataset',
   },
   {
     id: 'wind',

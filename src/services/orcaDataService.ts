@@ -1,6 +1,6 @@
-import { fetchWeatherForecast, DEFAULT_MUMBAI_COORDS } from './weatherService';
-import { fetchMarineConditions, DEFAULT_MUMBAI_MARINE_COORDS } from './marineService';
-import { marineConditions as fallbackMarineConditions } from '@/data/mockMarineData';
+import { fetchWeatherForecast, fetchFastAPIWeather } from './weatherService';
+import { fetchMarineConditions, fetchFastAPIMarine } from './marineService';
+import { fetchFastAPISafety } from './safetyService';
 import { MarineCondition } from '@/types';
 import { OrcaLiveMarineData } from '@/types/openMeteo';
 
@@ -14,13 +14,111 @@ export function degreesToCompass(deg: number): string {
 }
 
 /**
- * Fetch and assemble real-time weather and marine conditions from Open-Meteo
- * with automatic fallback to mock data on error.
+ * Fetch and assemble real-time weather and marine conditions.
+ * Architecture:
+ * 1. Primary: ORCA FastAPI Backend (http://localhost:8000)
+ * 2. Secondary: Direct Open-Meteo Public API
+ * 3. Tertiary: Local SIH demo mock data baseline
  */
 export async function getLiveOrcaMarineData(
-  lat: number = DEFAULT_MUMBAI_COORDS.latitude,
-  lon: number = DEFAULT_MUMBAI_COORDS.longitude
+  lat: number,
+  lon: number,
+  locationName: string = 'Coast'
 ): Promise<OrcaLiveMarineData> {
+  if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) {
+    throw new Error(`Invalid coordinates supplied to getLiveOrcaMarineData: lat=${lat}, lon=${lon}`);
+  }
+
+  // ── Tier 1: Try ORCA FastAPI Backend ────────────────────────
+  try {
+    const [fastWeather, fastMarine, fastSafety] = await Promise.all([
+      fetchFastAPIWeather(lat, lon),
+      fetchFastAPIMarine(lat, lon),
+      fetchFastAPISafety(lat, lon),
+    ]);
+
+    const wc = fastWeather.current || {};
+    const mc = fastMarine.current || {};
+
+    const waveHeight = mc.wave_height ?? 1.1;
+    const windSpeed = wc.wind_speed ?? 12.0;
+    const precip = wc.precipitation ?? 0.0;
+
+    let tomorrowMorningWave = waveHeight;
+    let tomorrowMorningWind = windSpeed;
+    let tomorrowMorningRain = precip;
+
+    const hourlyTimes = fastWeather.hourly?.time;
+    if (hourlyTimes && Array.isArray(hourlyTimes) && hourlyTimes.length > 0) {
+      const morningIndices: number[] = [];
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+      hourlyTimes.forEach((tStr: string, i: number) => {
+        if (typeof tStr === 'string' && tStr.startsWith(tomorrowStr)) {
+          const hour = parseInt(tStr.split('T')[1]?.split(':')[0] || '0', 10);
+          if (hour >= 6 && hour <= 11) {
+            morningIndices.push(i);
+          }
+        }
+      });
+
+      if (morningIndices.length > 0) {
+        const waves = morningIndices.map(i => fastMarine.hourly?.wave_height?.[i] ?? waveHeight);
+        const winds = morningIndices.map(i => fastWeather.hourly?.wind_speed?.[i] ?? windSpeed);
+        const rains = morningIndices.map(i => fastWeather.hourly?.precipitation?.[i] ?? 0);
+
+        tomorrowMorningWave = waves.reduce((a: number, b: number) => a + b, 0) / waves.length;
+        tomorrowMorningWind = winds.reduce((a: number, b: number) => a + b, 0) / winds.length;
+        tomorrowMorningRain = rains.reduce((a: number, b: number) => a + b, 0);
+      }
+    }
+
+    const isTomorrowSafe = tomorrowMorningWave < 2.0 && tomorrowMorningWind < 18.0 && tomorrowMorningRain < 10.0;
+
+    return {
+      source: 'fastapi',
+      isLive: true,
+      fetchedAt: new Date().toISOString(),
+      fastapiSafety: fastSafety,
+      coordinates: {
+        lat,
+        lon,
+        locationName,
+      },
+      current: {
+        temperature: wc.temperature ?? 28.4,
+        humidity: wc.humidity ?? 80,
+        precipitation: precip,
+        windSpeedKnots: windSpeed,
+        windDirectionDeg: wc.wind_direction ?? 240,
+        windDirectionCompass: wc.wind_direction_compass ?? 'SW',
+        windGustsKnots: wc.wind_gusts ?? (windSpeed * 1.3),
+        waveHeightMeters: waveHeight,
+        waveDirectionDeg: mc.wave_direction ?? 260,
+        wavePeriodSeconds: mc.wave_period ?? 6.5,
+        swellWaveHeightMeters: mc.swell_wave_height ?? 0.8,
+        swellWavePeriodSeconds: mc.swell_wave_period ?? 5.4,
+        seaSurfaceTemperature: mc.sea_surface_temperature ?? 29.0,
+      },
+      tomorrowMorning: {
+        window: 'Tomorrow 06:00–11:00 IST',
+        avgWaveHeight: parseFloat(tomorrowMorningWave.toFixed(1)),
+        avgWindSpeed: parseFloat(tomorrowMorningWind.toFixed(1)),
+        precipitationTotal: parseFloat(tomorrowMorningRain.toFixed(1)),
+        isSafe: isTomorrowSafe,
+        reason: fastSafety.recommendation || (isTomorrowSafe
+          ? `Waves avg ${tomorrowMorningWave.toFixed(1)}m, wind ${tomorrowMorningWind.toFixed(1)} kts within safe thresholds.`
+          : `Marginal conditions: swell or wind gusts approaching advisory limits.`),
+      },
+    };
+  } catch (fastApiErr) {
+    console.info('[ORCA Data Service] FastAPI backend unreachable or pending, attempting direct Open-Meteo fallback:', fastApiErr);
+  }
+
+  // ── Tier 2: Direct Open-Meteo API ───────────────────────────
   try {
     const [weatherRes, marineRes] = await Promise.all([
       fetchWeatherForecast(lat, lon),
@@ -30,14 +128,13 @@ export async function getLiveOrcaMarineData(
     const currentWeather = weatherRes.current;
     const currentMarine = marineRes.current;
 
-    // Analyze tomorrow morning forecast (approx. index +24h to +30h or matching date/hour)
+    // Analyze tomorrow morning forecast
     let tomorrowMorningWave = currentMarine.wave_height ?? 1.2;
     let tomorrowMorningWind = currentWeather.wind_speed_10m ?? 12;
     let tomorrowMorningRain = 0;
 
     const hourlyTimes = weatherRes.hourly.time;
     if (hourlyTimes && hourlyTimes.length > 0) {
-      // Find tomorrow's morning entries (06:00 to 11:00)
       const morningIndices: number[] = [];
       const now = new Date();
       const tomorrow = new Date(now);
@@ -73,7 +170,7 @@ export async function getLiveOrcaMarineData(
       coordinates: {
         lat,
         lon,
-        locationName: 'Mumbai Coastal Sector (Arabian Sea)',
+        locationName,
       },
       current: {
         temperature: currentWeather.temperature_2m,
@@ -102,7 +199,8 @@ export async function getLiveOrcaMarineData(
       },
     };
   } catch (error) {
-    console.warn('[ORCA Data Service] Open-Meteo live fetch failed, using fallback mock data:', error);
+    // ── Tier 3: Clearly Flagged Fallback Demo State ─────────────
+    console.warn(`[ORCA Data Service] Direct live fetch failed for ${locationName} (${lat}, ${lon}):`, error);
     return {
       source: 'mock-fallback',
       isLive: false,
@@ -110,42 +208,113 @@ export async function getLiveOrcaMarineData(
       coordinates: {
         lat,
         lon,
-        locationName: 'Mumbai Coastal Sector (Fallback Mock)',
+        locationName: `${locationName} (Fallback Demo)`,
       },
       current: {
-        temperature: 28.4,
-        humidity: 78,
+        temperature: 0,
+        humidity: 0,
         precipitation: 0,
-        windSpeedKnots: 14.0,
-        windDirectionDeg: 225,
-        windDirectionCompass: 'SW',
-        windGustsKnots: 18.0,
-        waveHeightMeters: 1.8,
-        waveDirectionDeg: 235,
-        wavePeriodSeconds: 6.8,
-        swellWaveHeightMeters: 1.4,
-        swellWavePeriodSeconds: 5.5,
-        seaSurfaceTemperature: 28.4,
+        windSpeedKnots: 0,
+        windDirectionDeg: 0,
+        windDirectionCompass: 'N/A',
+        windGustsKnots: 0,
+        waveHeightMeters: 0,
+        waveDirectionDeg: 0,
+        wavePeriodSeconds: 0,
+        swellWaveHeightMeters: 0,
+        swellWavePeriodSeconds: 0,
+        seaSurfaceTemperature: 0,
       },
       tomorrowMorning: {
         window: 'Tomorrow 05:00–11:00 IST',
-        avgWaveHeight: 1.8,
-        avgWindSpeed: 14.0,
+        avgWaveHeight: 0,
+        avgWindSpeed: 0,
         precipitationTotal: 0,
-        isSafe: true,
-        reason: 'Simulated baseline conditions suitable for mechanized operations.',
+        isSafe: false,
+        reason: `Live telemetry unavailable for ${locationName}. Baseline demo state active.`,
       },
     };
   }
 }
 
 /**
- * Transform live Open-Meteo data into the standard ORCA MarineCondition[] array
- * used by dashboard condition cards.
+ * Transform live Open-Meteo / FastAPI data into the standard ORCA MarineCondition[] array
  */
 export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondition[] {
-  const isReal = liveData.source === 'open-meteo';
+  const isReal = (liveData.source === 'fastapi' || liveData.source === 'open-meteo') && liveData.isLive;
   const c = liveData.current;
+  const locName = liveData.coordinates?.locationName || 'Coast';
+
+  if (!isReal) {
+    return [
+      {
+        id: 'sst',
+        label: 'metric_sst',
+        value: '--',
+        unit: '°C',
+        status: 'Unavailable',
+        statusColor: 'gray',
+        icon: 'thermometer',
+        detail: `Marine data temporarily unavailable for ${locName}`,
+        source: undefined,
+      },
+      {
+        id: 'chlorophyll',
+        label: 'metric_chlorophyll',
+        value: '--',
+        unit: 'mg/m³',
+        status: 'Pending',
+        statusColor: 'gray',
+        icon: 'leaf',
+        detail: 'Satellite feed pending',
+        source: undefined,
+      },
+      {
+        id: 'wind',
+        label: 'metric_wind',
+        value: '--',
+        unit: 'kts',
+        status: 'Unavailable',
+        statusColor: 'gray',
+        icon: 'wind',
+        detail: `Marine data temporarily unavailable for ${locName}`,
+        source: undefined,
+      },
+      {
+        id: 'waves',
+        label: 'metric_waves',
+        value: '--',
+        unit: 'm',
+        status: 'Unavailable',
+        statusColor: 'gray',
+        icon: 'waves',
+        detail: `Marine data temporarily unavailable for ${locName}`,
+        source: undefined,
+      },
+      {
+        id: 'precipitation',
+        label: 'metric_precipitation',
+        value: '--',
+        unit: 'mm',
+        status: 'Unavailable',
+        statusColor: 'gray',
+        icon: 'cloudRain',
+        detail: `Marine data temporarily unavailable for ${locName}`,
+        source: undefined,
+      },
+      {
+        id: 'tide',
+        label: 'metric_tide',
+        value: '--',
+        unit: '',
+        status: 'Pending',
+        statusColor: 'gray',
+        icon: 'arrowUpDown',
+        detail: 'Hydrodynamic Table',
+        source: undefined,
+      },
+    ];
+  }
 
   // Wave condition status & color
   let waveStatus = 'Acceptable';
@@ -203,6 +372,8 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
     sstColor = 'blue';
   }
 
+  const liveSourceLabel = liveData.source === 'fastapi' ? 'FastAPI / Open-Meteo' : 'Open-Meteo Marine';
+
   return [
     {
       id: 'sst',
@@ -214,19 +385,19 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
       status: sstStatus,
       statusColor: sstColor,
       icon: 'thermometer',
-      detail: isReal ? 'Open-Meteo Marine' : 'Suitable range for pelagic activity',
+      detail: isReal ? liveSourceLabel : 'Suitable range for pelagic activity',
       source: isReal ? 'Open-Meteo' : undefined,
     },
     {
       id: 'chlorophyll',
       label: 'metric_chlorophyll',
-      value: '1.2',
+      value: '--',
       unit: 'mg/m³',
-      status: 'Dense Biomass',
-      statusColor: 'green',
+      status: 'Pending',
+      statusColor: 'gray',
       icon: 'leaf',
-      detail: 'ISRO OCM-3 Proxy',
-      source: undefined, // Mock proxy
+      detail: 'Satellite feed pending (NASA / INCOIS)',
+      source: undefined,
     },
     {
       id: 'wind',
@@ -270,7 +441,7 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
       statusColor: 'blue',
       icon: 'arrowUpDown',
       detail: 'Hydrodynamic Table',
-      source: undefined, // Mock proxy
+      source: undefined,
     },
   ];
 }

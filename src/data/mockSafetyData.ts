@@ -7,10 +7,10 @@ export const safetyAssessments: Record<'low' | 'moderate' | 'high', SafetyAssess
     maxScore: 100,
     area: 'Sector 4',
     validityPeriod: 'Tomorrow 05:00–11:00 IST',
-    verdictTitle: 'VERDICT: SAFE TO OPERATE',
-    verdictSubtitle: 'LOW RISK — CONDITIONS SUITABLE',
+    verdictTitle: 'VERDICT: CONDITIONS APPEAR SUITABLE',
+    verdictSubtitle: 'LOW RISK — CONDITIONS SUITABLE FOR FISHING',
     description:
-      'Sector 4 currently shows suitable conditions for fishing during the selected morning window (05:00–11:00 IST). Mechanized & motorized craft may execute departures safely.',
+      'Sector 4 currently shows favourable conditions during the selected morning window (05:00–11:00 IST). Mechanized & motorized craft may operate with standard vigilance. Verify official marine advisories before departure.',
     factors: [
       {
         id: 'waves',
@@ -67,9 +67,9 @@ export const safetyAssessments: Record<'low' | 'moderate' | 'high', SafetyAssess
       'No active lightning/cyclone alert or geofence boundary conflict detected.',
     ],
     recommendation:
-      'Fishing conditions are currently suitable for Sector 4. Continue monitoring official marine advisories before departure.',
+      'Conditions appear favourable based on available environmental data. Verify official marine advisories before departure.',
     disclaimer:
-      'AI assessment based on available environmental data. Check the latest official marine advisory before departure.',
+      'AI assessment based on available environmental data. Sea conditions can change rapidly. Verify official marine advisories before departure.',
   },
   moderate: {
     riskLevel: 'moderate',

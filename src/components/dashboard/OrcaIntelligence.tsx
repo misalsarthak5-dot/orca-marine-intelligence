@@ -1,14 +1,20 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ArrowRight,
-  CheckCircle2,
   Navigation,
   Route,
+  Info,
+  Compass,
+  Layers,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
-import { nearestPFZ } from '@/data/mockPFZData';
+import { useLocation } from '@/lib/location';
+import { fetchFastAPIPFZ, PFZAssessmentResponse, PFZAdvisory } from '@/services/pfzService';
 
 interface OrcaIntelligenceProps {
   onReviewRoute?: () => void;
@@ -16,52 +22,177 @@ interface OrcaIntelligenceProps {
 
 export default function OrcaIntelligence({ onReviewRoute }: OrcaIntelligenceProps) {
   const { t } = useTranslation();
+  const { selectedLocation } = useLocation();
+  const [pfzData, setPfzData] = useState<PFZAssessmentResponse | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+
+    fetchFastAPIPFZ(selectedLocation.latitude, selectedLocation.longitude)
+      .then((data) => {
+        if (isMounted) {
+          setPfzData(data);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          console.warn('[OrcaIntelligence] Failed to fetch PFZ:', err);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedLocation.latitude, selectedLocation.longitude]);
+
+  const nearestAdvisory: PFZAdvisory | null = pfzData?.nearest_advisory ?? null;
+  const hasActivePfz = Boolean(pfzData?.available && nearestAdvisory);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-100">
+      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
         <h3 className="text-[11px] font-bold text-navy-900 uppercase tracking-wider">
           {t('intel_title')}
         </h3>
+        <span className="text-[10px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+          Official INCOIS PFZ Advisory
+        </span>
       </div>
 
-      {/* Action Suggested */}
+      {/* INCOIS PFZ Advisory Section */}
       <div className="px-4 py-3 border-b border-gray-100">
-        <div className="flex items-center gap-1.5 mb-2">
-          <Route size={12} className="text-teal-600" />
-          <span className="text-[10px] font-bold text-teal-600 uppercase tracking-wider">
-            {t('intel_actionSuggested')}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5">
+            <Compass size={13} className="text-teal-600" />
+            <span className="text-[10px] font-bold text-teal-600 uppercase tracking-wider">
+              PFZ Vector Intelligence
+            </span>
+          </div>
+          <span className="text-[9px] text-gray-500 font-medium">
+            {selectedLocation.name} Sector
           </span>
         </div>
-        <h4 className="text-[13px] font-bold text-navy-900 mb-1.5">{t('intel_routeRecommendation')}</h4>
-        <p className="text-[11px] text-gray-600 leading-relaxed">
-          Current trajectory encounters elevated wave conditions. A 2° port deviation reduces estimated exposure.
-        </p>
-        <div className="flex gap-2 mt-3">
-          <button
-            onClick={onReviewRoute}
-            className="px-3 py-1.5 bg-teal-600 text-white text-[10px] font-semibold rounded-lg hover:bg-teal-700 transition-colors flex items-center gap-1"
-          >
-            {t('intel_reviewRoute')}
-            <ArrowRight size={10} />
-          </button>
-          <button className="px-3 py-1.5 bg-gray-100 text-navy-700 text-[10px] font-semibold rounded-lg hover:bg-gray-200 transition-colors">
-            {t('intel_simulate')}
-          </button>
-        </div>
+
+        {loading ? (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-center gap-2 text-gray-500 text-[11px]">
+            <Loader2 size={14} className="animate-spin text-teal-600" />
+            <span>Querying official INCOIS PFZ WebGIS services...</span>
+          </div>
+        ) : hasActivePfz && nearestAdvisory ? (
+          <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg p-3 space-y-2.5">
+            {/* Freshness banner if advisory is from historical record */}
+            {!nearestAdvisory.is_currently_valid && (
+              <div className="bg-amber-50/90 border border-amber-200 rounded p-2 text-[10px] text-amber-900 flex items-start gap-1.5 leading-relaxed">
+                <Info size={13} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                <span>
+                  <strong>Advisory Cycle:</strong> No currently valid (same-day) INCOIS PFZ advisory is available for this location. Showing official INCOIS advisory on record (Advisory validity: 28-Apr-2024 • Dataset updated: 29-Apr-2024) for baseline reference.
+                </span>
+              </div>
+            )}
+
+            {/* Nearest PFZ header */}
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wide">
+                  Official INCOIS Landing Centre
+                </span>
+                <h5 className="text-[13px] font-bold text-navy-900 mt-0.5">
+                  {nearestAdvisory.landing_center}
+                  {nearestAdvisory.district ? ` (${nearestAdvisory.district})` : ''}
+                </h5>
+              </div>
+              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                <Compass size={11} className="text-emerald-700" />
+                {nearestAdvisory.advisory_distance_from_km && nearestAdvisory.advisory_distance_to_km
+                  ? `${nearestAdvisory.advisory_distance_from_km}–${nearestAdvisory.advisory_distance_to_km} km`
+                  : `${nearestAdvisory.distance_from_query_km} km`}{' '}
+                {nearestAdvisory.direction || ''}
+              </span>
+            </div>
+
+            {/* Key Metrics Grid */}
+            <div className="grid grid-cols-2 gap-2 bg-white/80 rounded-md p-2 border border-emerald-100 text-[11px]">
+              <div>
+                <span className="text-[10px] text-gray-500 block">PFZ Bearing & Direction</span>
+                <span className="font-semibold text-navy-900">
+                  {nearestAdvisory.bearing_degrees !== null && nearestAdvisory.bearing_degrees !== undefined
+                    ? `${nearestAdvisory.bearing_degrees}° (${nearestAdvisory.direction || 'N/A'})`
+                    : nearestAdvisory.direction || 'N/A'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-gray-500 block">Depth Range</span>
+                <span className="font-semibold text-navy-900">
+                  {nearestAdvisory.depth_from_m !== null && nearestAdvisory.depth_to_m !== null
+                    ? `Depth: ${nearestAdvisory.depth_from_m}–${nearestAdvisory.depth_to_m} m`
+                    : 'Depth: Coastal shelf'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-gray-500 block">Advisory Validity</span>
+                <span className="font-semibold text-navy-900">
+                  {nearestAdvisory.validity_formatted || nearestAdvisory.validity_date || '28-Apr-2024'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-gray-500 block">Dataset Updated</span>
+                <span className="font-semibold text-navy-900">
+                  {nearestAdvisory.dataset_updated || '29-Apr-2024'}
+                </span>
+              </div>
+            </div>
+
+            {/* Target Coordinates & Attribution */}
+            {nearestAdvisory.target_dms && (
+              <div className="text-[10px] text-gray-600 font-mono bg-white/60 px-2 py-1 rounded border border-emerald-100 flex items-center justify-between">
+                <span>Target Coordinates:</span>
+                <span className="font-semibold text-navy-800">
+                  {nearestAdvisory.target_dms.latitude}, {nearestAdvisory.target_dms.longitude}
+                </span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-1 border-t border-emerald-200/60 text-[10px]">
+              <span className="text-emerald-800 font-semibold">
+                Source: INCOIS — Official PFZ Advisory
+              </span>
+              <span className="text-gray-500 font-medium">
+                {pfzData?.total_pfz_lines_found ?? 0} PFZ lines mapped
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <div className="flex items-start gap-2">
+              <Info size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-[11px] font-semibold text-gray-700">
+                  No currently valid location-specific landing-centre advisory is available for this sector.
+                </p>
+                <p className="text-[10px] text-gray-500 mt-1">
+                  Source: INCOIS — Official PFZ Advisory (Dataset updated: 29-Apr-2024). Nationwide satellite frontal lines remain mapped across the Indian coastline.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* WHY section */}
-      <div className="px-4 py-3 border-b border-gray-100">
+      {/* Decision Support Insights */}
+      <div className="px-4 py-3">
         <h4 className="text-[10px] font-bold text-navy-800 uppercase tracking-wider mb-2">
-          {t('intel_whyTitle')}
+          Decision Support Insights
         </h4>
         <div className="space-y-1.5">
           {[
-            'Wave conditions are elevated along the current corridor.',
-            'Wind conditions are increasing from SW.',
-            'A lower-risk corridor is available.',
+            `Real-time Open-Meteo wave swell & wind conditions evaluated for ${selectedLocation.name}.`,
+            `Official INCOIS PFZ advisory vectors queried within operational radius.`,
+            `Safety thresholds applied dynamically based on vessel operational limits.`,
           ].map((reason, i) => (
             <div key={i} className="flex items-start gap-2">
               <span className="text-[10px] font-bold text-teal-600 mt-0.5">{i + 1}.</span>
@@ -70,24 +201,8 @@ export default function OrcaIntelligence({ onReviewRoute }: OrcaIntelligenceProp
           ))}
         </div>
       </div>
-
-      {/* Suggested Support - PFZ */}
-      <div className="px-4 py-3">
-        <h4 className="text-[10px] font-bold text-navy-800 uppercase tracking-wider mb-2">
-          {t('intel_suggestedSupport')}
-        </h4>
-        <div className="bg-teal-50 border border-teal-200 rounded-lg p-3">
-          <div className="flex items-center justify-between mb-1">
-            <h5 className="text-[12px] font-bold text-teal-700">PFZ-A</h5>
-            <span className="text-[10px] text-teal-600">{nearestPFZ.distance} • Bearing: 242°</span>
-          </div>
-          <p className="text-[10px] text-teal-600 mb-2">High Yield Tuna/Sardine</p>
-          <button className="w-full px-3 py-1.5 bg-teal-600 text-white text-[10px] font-semibold rounded-lg hover:bg-teal-700 transition-colors flex items-center justify-center gap-1">
-            <Navigation size={10} />
-            {t('intel_sendWaypoint')}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
+
+

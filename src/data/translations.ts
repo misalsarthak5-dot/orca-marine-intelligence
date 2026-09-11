@@ -15,13 +15,13 @@ export const translations: Translations = {
 
     // Header
     header_greeting: 'Good morning, Officer.',
-    header_subtitle: 'Marine intelligence systems nominal • Sector 4 clear',
+    header_subtitle: 'Marine intelligence systems nominal',
     header_lastUpdated: 'Last updated',
     header_fishingSafety: 'CONDITIONS SUITABLE FOR FISHING',
     header_conditionsSuitable: 'CONDITIONS SUITABLE',
     header_conditionsCaution: 'CONDITIONS REQUIRE CAUTION',
     header_conditionsNotRecommended: 'FISHING NOT RECOMMENDED',
-    header_validTomorrow: 'Sector 4 • Valid: Tomorrow 05:00–11:00 IST',
+    header_validTomorrow: 'Valid: Tomorrow 05:00–11:00 IST',
 
     // Marine Metrics
     metric_sst: 'Sea Surface Temperature',
@@ -51,8 +51,8 @@ export const translations: Translations = {
     safety_risk: 'Risk',
 
     // Map
-    map_title: 'Mumbai Coastline Intelligence • Sector 4',
-    map_subtitle: 'ARABIAN SEA • INCOIS / SATELLITE / MARINE DATA',
+    map_title: 'Coastline Intelligence',
+    map_subtitle: 'ARABIAN SEA & BAY OF BENGAL • INCOIS / SATELLITE / MARINE DATA',
     map_searchPlaceholder: 'Search location, fishing zone or vessel...',
     map_assessedArea: 'ASSESSED AREA: Sector',
 
@@ -118,7 +118,7 @@ export const translations: Translations = {
 
     // Categories
     cat_marineIntelligence: 'Marine Intelligence',
-    cat_pfzDiscovery: 'PFZ Discovery (32km)',
+    cat_pfzDiscovery: 'PFZ Discovery',
     cat_safetyAssessment: 'Safety Assessment',
     cat_routeIntelligence: 'Route Intelligence',
   },
@@ -135,13 +135,13 @@ export const translations: Translations = {
     nav_support: 'सहायता',
 
     header_greeting: 'सुप्रभात, अधिकारी।',
-    header_subtitle: 'समुद्री इंटेलिजेंस प्रणाली सामान्य • सेक्टर 4 स्पष्ट',
+    header_subtitle: 'समुद्री इंटेलिजेंस प्रणाली सामान्य',
     header_lastUpdated: 'अंतिम अपडेट',
     header_fishingSafety: 'मछली पकड़ने के लिए परिस्थितियाँ उपयुक्त',
     header_conditionsSuitable: 'परिस्थितियाँ उपयुक्त',
     header_conditionsCaution: 'सावधानी आवश्यक',
     header_conditionsNotRecommended: 'मछली पकड़ना अनुशंसित नहीं',
-    header_validTomorrow: 'सेक्टर 4 • मान्य: कल 05:00–11:00 IST',
+    header_validTomorrow: 'मान्य: कल 05:00–11:00 IST',
 
     metric_sst: 'समुद्री सतह तापमान',
     metric_chlorophyll: 'क्लोरोफिल',
@@ -168,7 +168,7 @@ export const translations: Translations = {
     safety_assessment: 'मूल्यांकन',
     safety_risk: 'जोखिम',
 
-    map_title: 'मुंबई तटरेखा इंटेलिजेंस • सेक्टर 4',
+    map_title: 'तटरेखा इंटेलिजेंस',
     map_subtitle: 'अरब सागर • INCOIS / उपग्रह / समुद्री डेटा',
     map_searchPlaceholder: 'स्थान, मत्स्य क्षेत्र या पोत खोजें...',
     map_assessedArea: 'मूल्यांकित क्षेत्र: सेक्टर',
@@ -226,7 +226,7 @@ export const translations: Translations = {
     factor_geofence: 'जियोफ़ेंस',
 
     cat_marineIntelligence: 'समुद्री इंटेलिजेंस',
-    cat_pfzDiscovery: 'PFZ खोज (32km)',
+    cat_pfzDiscovery: 'PFZ खोज',
     cat_safetyAssessment: 'सुरक्षा मूल्यांकन',
     cat_routeIntelligence: 'मार्ग इंटेलिजेंस',
   },
@@ -243,13 +243,13 @@ export const translations: Translations = {
     nav_support: 'सहाय्य',
 
     header_greeting: 'सुप्रभात, अधिकारी.',
-    header_subtitle: 'सागरी इंटेलिजन्स प्रणाली सामान्य • सेक्टर 4 स्पष्ट',
+    header_subtitle: 'सागरी इंटेलिजन्स प्रणाली सामान्य',
     header_lastUpdated: 'शेवटचे अपडेट',
     header_fishingSafety: 'मासेमारीसाठी परिस्थिती योग्य',
     header_conditionsSuitable: 'परिस्थिती योग्य',
     header_conditionsCaution: 'सावधगिरी आवश्यक',
     header_conditionsNotRecommended: 'मासेमारी शिफारस नाही',
-    header_validTomorrow: 'सेक्टर 4 • वैध: उद्या 05:00–11:00 IST',
+    header_validTomorrow: 'वैध: उद्या 05:00–11:00 IST',
 
     metric_sst: 'समुद्र पृष्ठभाग तापमान',
     metric_chlorophyll: 'क्लोरोफिल',
@@ -276,8 +276,8 @@ export const translations: Translations = {
     safety_assessment: 'मूल्यांकन',
     safety_risk: 'जोखीम',
 
-    map_title: 'मुंबई किनारपट्टी इंटेलिजन्स • सेक्टर 4',
-    map_subtitle: 'अरबी समुद्र • INCOIS / उपग्रह / सागरी डेटा',
+    map_title: 'किनारपट्टी इंटेलिजन्स',
+    map_subtitle: 'अरबी समुद्र आणि बंगालचा उपसागर • INCOIS / उपग्रह / सागरी डेटा',
     map_searchPlaceholder: 'स्थान, मत्स्य क्षेत्र किंवा जहाज शोधा...',
     map_assessedArea: 'मूल्यांकित क्षेत्र: सेक्टर',
 
@@ -334,7 +334,7 @@ export const translations: Translations = {
     factor_geofence: 'जिओफेन्स',
 
     cat_marineIntelligence: 'सागरी इंटेलिजन्स',
-    cat_pfzDiscovery: 'PFZ शोध (32km)',
+    cat_pfzDiscovery: 'PFZ शोध',
     cat_safetyAssessment: 'सुरक्षा मूल्यांकन',
     cat_routeIntelligence: 'मार्ग इंटेलिजन्स',
   },
