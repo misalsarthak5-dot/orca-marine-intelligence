@@ -7,23 +7,118 @@ import { OrcaLiveMarineData } from '@/types/openMeteo';
 import { MarineCondition, SafetyAssessment } from '@/types';
 
 export interface LocationState {
+  id?: string;
   name: string;
   latitude: number;
   longitude: number;
+  displayLabel?: string;
+  harborRef?: string;
+  mapZoom?: number;
+  region?: string;
   isCustom?: boolean;
 }
 
 export const COASTAL_LOCATIONS: LocationState[] = [
-  { name: 'Mumbai Coast', latitude: 19.0760, longitude: 72.8777 },
-  { name: 'Ratnagiri Coast', latitude: 16.9902, longitude: 73.3120 },
-  { name: 'Goa Coast', latitude: 15.4989, longitude: 73.8278 },
-  { name: 'Mangalore Coast', latitude: 12.9141, longitude: 74.8560 },
-  { name: 'Kochi Coast', latitude: 9.9312, longitude: 76.2673 },
-  { name: 'Chennai Coast', latitude: 13.0827, longitude: 80.2707 },
-  { name: 'Visakhapatnam Coast', latitude: 17.6868, longitude: 83.2185 },
-  { name: 'Puri Coast', latitude: 19.8135, longitude: 85.8312 },
-  { name: 'Kolkata Coast', latitude: 21.6266, longitude: 88.0645 },
-  { name: 'Port Blair', latitude: 11.6234, longitude: 92.7265 },
+  {
+    id: 'mumbai',
+    name: 'Mumbai Coast',
+    displayLabel: 'Mumbai Coast',
+    latitude: 19.08,
+    longitude: 72.88,
+    harborRef: 'Sassoon Docks / New Ferry Wharf',
+    mapZoom: 10,
+    region: 'West Coast (Arabian Sea)',
+  },
+  {
+    id: 'ratnagiri',
+    name: 'Ratnagiri Coast',
+    displayLabel: 'Ratnagiri Coast',
+    latitude: 16.99,
+    longitude: 73.31,
+    harborRef: 'Mirkarwada Fishing Harbour',
+    mapZoom: 10,
+    region: 'West Coast (Arabian Sea)',
+  },
+  {
+    id: 'goa',
+    name: 'Goa Coast',
+    displayLabel: 'Goa Coast',
+    latitude: 15.50,
+    longitude: 73.83,
+    harborRef: 'Malim / Panaji / Betul',
+    mapZoom: 10,
+    region: 'West Coast (Arabian Sea)',
+  },
+  {
+    id: 'mangalore',
+    name: 'Mangalore Coast',
+    displayLabel: 'Mangalore Coast',
+    latitude: 12.91,
+    longitude: 74.86,
+    harborRef: 'Old Port (Bunder) Fishing Harbour',
+    mapZoom: 10,
+    region: 'West Coast (Arabian Sea)',
+  },
+  {
+    id: 'kochi',
+    name: 'Kochi Coast',
+    displayLabel: 'Kochi Coast',
+    latitude: 9.93,
+    longitude: 76.27,
+    harborRef: 'Cochin Fisheries Harbour (Thoppumpady)',
+    mapZoom: 10,
+    region: 'South-West Coast (Arabian Sea)',
+  },
+  {
+    id: 'chennai',
+    name: 'Chennai Coast',
+    displayLabel: 'Chennai Coast',
+    latitude: 13.08,
+    longitude: 80.27,
+    harborRef: 'Kasimedu (Chennai) Fishing Harbour',
+    mapZoom: 10,
+    region: 'East Coast (Bay of Bengal)',
+  },
+  {
+    id: 'visakhapatnam',
+    name: 'Visakhapatnam Coast',
+    displayLabel: 'Visakhapatnam Coast',
+    latitude: 17.69,
+    longitude: 83.22,
+    harborRef: 'Visakhapatnam Fishing Harbour',
+    mapZoom: 10,
+    region: 'East Coast (Bay of Bengal)',
+  },
+  {
+    id: 'puri',
+    name: 'Puri Coast',
+    displayLabel: 'Puri Coast',
+    latitude: 19.81,
+    longitude: 85.83,
+    harborRef: 'Puri Fish Landing Centre / Penthakata',
+    mapZoom: 10,
+    region: 'East Coast (Bay of Bengal)',
+  },
+  {
+    id: 'kolkata',
+    name: 'Kolkata Coast',
+    displayLabel: 'Kolkata Coast',
+    latitude: 21.63,
+    longitude: 88.06,
+    harborRef: 'Digha Mohana / Fraserganj Coastal Sector',
+    mapZoom: 10,
+    region: 'East Coast (Bay of Bengal)',
+  },
+  {
+    id: 'port_blair',
+    name: 'Port Blair',
+    displayLabel: 'Port Blair (Andaman)',
+    latitude: 11.62,
+    longitude: 92.73,
+    harborRef: 'Junglighat / Phoenix Bay Fisheries Jetty',
+    mapZoom: 11,
+    region: 'Andaman & Nicobar Islands (Bay of Bengal)',
+  },
 ];
 
 export const DEFAULT_LOCATION: LocationState = COASTAL_LOCATIONS[0];

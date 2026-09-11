@@ -12,13 +12,20 @@ import {
 } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
 import { useLocation } from '@/lib/location';
-import { MapLayerType } from '@/types';
+import { MapLayerType, CandidateRoute } from '@/types';
 
 interface MarineMapProps {
   activeLayers: MapLayerType[];
   onToggleLayer: (layer: MapLayerType) => void;
   /** Live hazard severity from the MarineHazardsAlerts card */
   hazardCode?: 'clear' | 'caution' | 'high';
+  /** Route Intelligence corridors */
+  routes?: CandidateRoute[];
+  recommendedRouteId?: string;
+  selectedRouteId?: string;
+  onSelectRoute?: (routeId: string) => void;
+  destination?: { latitude: number; longitude: number; name: string };
+  onMapClickCoordinates?: (lat: number, lon: number) => void;
 }
 
 const layerConfig: { id: MapLayerType; label: string; color: string }[] = [
@@ -35,7 +42,17 @@ const layerConfig: { id: MapLayerType; label: string; color: string }[] = [
 // Dynamic import for Leaflet - only loads on client
 const LeafletMap = React.lazy(() => import('./LeafletMap'));
 
-export default function MarineMap({ activeLayers, onToggleLayer, hazardCode = 'caution' }: MarineMapProps) {
+export default function MarineMap({
+  activeLayers,
+  onToggleLayer,
+  hazardCode = 'caution',
+  routes,
+  recommendedRouteId,
+  selectedRouteId,
+  onSelectRoute,
+  destination,
+  onMapClickCoordinates,
+}: MarineMapProps) {
   const { t } = useTranslation();
   const { selectedLocation } = useLocation();
   const [isClient, setIsClient] = useState(false);
@@ -161,12 +178,55 @@ export default function MarineMap({ activeLayers, onToggleLayer, hazardCode = 'c
               </div>
             }
           >
-            <LeafletMap selectedLocation={selectedLocation} activeLayers={activeLayers} onMapReady={setMapControls} hazardCode={hazardCode} />
+            <LeafletMap
+              selectedLocation={selectedLocation}
+              activeLayers={activeLayers}
+              onMapReady={setMapControls}
+              hazardCode={hazardCode}
+              routes={routes}
+              recommendedRouteId={recommendedRouteId}
+              selectedRouteId={selectedRouteId}
+              onSelectRoute={onSelectRoute}
+              destination={destination}
+              onMapClickCoordinates={onMapClickCoordinates}
+            />
           </React.Suspense>
         )}
 
         {/* Legend overlay */}
-        <div className="absolute bottom-3 left-3 z-[1000] bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg px-3 py-2 shadow-sm space-y-1.5">
+        <div className="absolute bottom-3 left-3 z-[1000] bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl px-3.5 py-2.5 shadow-md space-y-2 max-w-xs">
+          {/* Route Legend when Route Layer is Active or Routes are available */}
+          {(activeLayers.includes('route') || (routes && routes.length > 0)) && (
+            <div className="pb-2 border-b border-gray-100 space-y-1.5">
+              <div className="text-[10px] font-bold text-navy-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Navigation size={11} className="text-teal-600" />
+                <span>Route Intelligence Legend</span>
+              </div>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-5 h-1 bg-teal-600 rounded-full shadow-xs" />
+                  <span className="font-semibold text-teal-900">Recommended</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-5 h-0.5 border-t-2 border-dashed border-sky-500" />
+                  <span className="text-gray-600">Alternative</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px]">⚓</span>
+                  <span className="font-medium text-navy-800">Origin Port</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px]">🎯</span>
+                  <span className="font-medium text-navy-800">PFZ Target</span>
+                </div>
+                <div className="flex items-center gap-1.5 col-span-2">
+                  <div className="w-4 h-2 rounded-xs bg-rose-500/20 border border-dashed border-rose-500" />
+                  <span className="text-rose-700 font-medium">Restricted / Avoidance Zone</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {showSstLegend && (
             <div className="flex items-center gap-2 text-[10px] pb-1 border-b border-gray-100">
               <span className="font-bold text-navy-900">Sea Surface Temp:</span>

@@ -157,6 +157,76 @@ export interface AvoidZone {
   severity: AlertSeverity;
 }
 
+export interface RouteConditions {
+  peak_wave_m: number;
+  peak_wind_kt: number;
+  peak_gust_kt: number;
+  peak_precipitation_mm: number;
+  avg_sst_c: number;
+}
+
+export interface CandidateRoute {
+  id: string;
+  name: string;
+  description: string;
+  coordinates: [number, number][];
+  sample_points?: [number, number][];
+  distance_km: number;
+  estimated_time_hours: number;
+  speed_assumption: string;
+  risk_score: number;
+  risk_level: 'LOW' | 'CAUTION' | 'HIGH';
+  restriction_status?: 'CLEAR' | 'RESTRICTED' | 'UNAVAILABLE';
+  overall_status?: 'VIABLE' | 'NOT_VIABLE' | 'ENVIRONMENTAL_ANALYSIS_ONLY';
+  intersecting_zones?: string[];
+  geofence_note?: string;
+  conditions: RouteConditions;
+  risk_factors: string[];
+}
+
+export interface GeofenceZone {
+  id: string;
+  name: string;
+  zone_type: string;
+  authority?: string;
+  description?: string;
+  geometry: {
+    type: 'Polygon' | 'MultiPolygon';
+    coordinates: number[][][] | number[][][][];
+  };
+}
+
+export interface GeofenceResponse {
+  status: 'AVAILABLE' | 'UNAVAILABLE' | 'INVALID';
+  source: string | null;
+  query_coordinates: { latitude: number; longitude: number };
+  search_radius_km: number;
+  total_zones_found: number;
+  zones: GeofenceZone[];
+  message: string;
+  disclaimer: string;
+}
+
+export interface RouteAnalysisResponse {
+  available: boolean;
+  origin: {
+    latitude: number;
+    longitude: number;
+  };
+  destination: {
+    name: string;
+    latitude: number;
+    longitude: number;
+    linear_distance_km: number;
+  };
+  time_window: string;
+  routes: CandidateRoute[];
+  recommended_route_id: string;
+  recommendation_reason: string;
+  data_sources: string[];
+  disclaimer: string;
+}
+
 export interface RouteRecommendation {
   id: string;
   name: string;
@@ -360,6 +430,22 @@ export interface TranslationStrings {
   cat_pfzDiscovery: string;
   cat_safetyAssessment: string;
   cat_routeIntelligence: string;
+
+  // Route Intelligence
+  route_intel_title: string;
+  route_intel_subtitle: string;
+  route_origin: string;
+  route_destination: string;
+  route_time_window: string;
+  route_analyze_btn: string;
+  route_analyzing: string;
+  route_recommended: string;
+  route_lower_risk: string;
+  route_why_rec: string;
+  route_no_pfz: string;
+  route_speed_note: string;
+  route_data_provenance: string;
+  route_disclaimer: string;
 }
 
 export type Translations = Record<Language, TranslationStrings>;

@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Map,
   MessageCircle,
+  Navigation,
   AlertTriangle,
   Brain,
   Settings,
@@ -27,6 +28,7 @@ const mainNavItems: NavItem[] = [
   { labelKey: 'nav_dashboard', href: '/dashboard', icon: <LayoutDashboard size={18} /> },
   { labelKey: 'nav_liveMap', href: '/live-map', icon: <Map size={18} /> },
   { labelKey: 'nav_askOrca', href: '/ask', icon: <MessageCircle size={18} /> },
+  { labelKey: 'nav_fleet', href: '/fleet', icon: <Navigation size={18} /> },
   { labelKey: 'nav_alerts', href: '/alerts', icon: <AlertTriangle size={18} /> },
   { labelKey: 'nav_intelligence', href: '/intelligence', icon: <Brain size={18} /> },
 ];

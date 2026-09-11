@@ -73,6 +73,8 @@ export interface PFZAssessmentResponse {
   active_advisories: PFZAdvisory[];
   total_pfz_lines_found: number;
   pfz_lines: PFZLineFeature[];
+  regional_pfz_lines?: PFZLineFeature[];
+  total_regional_lines?: number;
   nationwide_pfz_lines?: PFZLineFeature[];
   total_nationwide_lines?: number;
   advisory_metadata: {
@@ -82,6 +84,8 @@ export interface PFZAssessmentResponse {
     dataset_updated?: string;
     dataset_layer?: string;
     is_currently_valid?: boolean;
+    localized_advisory_status?: string;
+    regional_vectors_status?: string;
     validity_date?: string | null;
     validity_formatted?: string | null;
     validity_status?: string;

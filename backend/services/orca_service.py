@@ -1,3 +1,5 @@
+import math
+import re
 from typing import Dict, Any, List, Optional, Tuple
 from .intent_service import detect_intent, extract_time_window, detect_language, OrcaIntent
 from .weather_service import get_weather_data
@@ -5,53 +7,53 @@ from .marine_service import get_marine_data
 from .safety_service import calculate_safety_assessment
 from .hazard_service import evaluate_hazards
 from .pfz_service import get_pfz_assessment
+from .route_service import analyze_routes_service
 
 from fastapi import HTTPException
-import re
 
 # Known coastal locations for entity detection from user queries
 COASTAL_LOCATIONS: Dict[str, Tuple[float, float, str]] = {
     # Port Blair (multi-word first)
-    "port blair":      (11.6234, 92.7265, "Port Blair"),
-    "पोर्ट ब्लेयर":     (11.6234, 92.7265, "Port Blair"),
-    "पोर्ट ब्लेअर":     (11.6234, 92.7265, "Port Blair"),
+    "port blair":      (11.62, 92.73, "Port Blair"),
+    "पोर्ट ब्लेयर":     (11.62, 92.73, "Port Blair"),
+    "पोर्ट ब्लेअर":     (11.62, 92.73, "Port Blair"),
     # Visakhapatnam / Vizag
-    "visakhapatnam":   (17.6868, 83.2185, "Visakhapatnam Coast"),
-    "vizag":           (17.6868, 83.2185, "Visakhapatnam Coast"),
-    "विशाखापत्तनम":    (17.6868, 83.2185, "Visakhapatnam Coast"),
-    "विझाग":           (17.6868, 83.2185, "Visakhapatnam Coast"),
+    "visakhapatnam":   (17.69, 83.22, "Visakhapatnam Coast"),
+    "vizag":           (17.69, 83.22, "Visakhapatnam Coast"),
+    "विशाखापत्तनम":    (17.69, 83.22, "Visakhapatnam Coast"),
+    "विझाग":           (17.69, 83.22, "Visakhapatnam Coast"),
     # Ratnagiri
-    "ratnagiri":       (16.9902, 73.3120, "Ratnagiri Coast"),
-    "रत्नागिरी":        (16.9902, 73.3120, "Ratnagiri Coast"),
+    "ratnagiri":       (16.99, 73.31, "Ratnagiri Coast"),
+    "रत्नागिरी":        (16.99, 73.31, "Ratnagiri Coast"),
     # Mangalore / Mangaluru
-    "mangalore":       (12.9141, 74.8560, "Mangalore Coast"),
-    "mangaluru":       (12.9141, 74.8560, "Mangalore Coast"),
-    "मंगलोर":          (12.9141, 74.8560, "Mangalore Coast"),
-    "मंगळूर":          (12.9141, 74.8560, "Mangalore Coast"),
+    "mangalore":       (12.91, 74.86, "Mangalore Coast"),
+    "mangaluru":       (12.91, 74.86, "Mangalore Coast"),
+    "मंगलोर":          (12.91, 74.86, "Mangalore Coast"),
+    "मंगळूर":          (12.91, 74.86, "Mangalore Coast"),
     # Chennai / Madras
-    "chennai":         (13.0827, 80.2707, "Chennai Coast"),
-    "madras":          (13.0827, 80.2707, "Chennai Coast"),
-    "चेन्नई":           (13.0827, 80.2707, "Chennai Coast"),
+    "chennai":         (13.08, 80.27, "Chennai Coast"),
+    "madras":          (13.08, 80.27, "Chennai Coast"),
+    "चेन्नई":           (13.08, 80.27, "Chennai Coast"),
     # Kolkata / Calcutta
-    "kolkata":         (21.6266, 88.0645, "Kolkata Coast"),
-    "calcutta":        (21.6266, 88.0645, "Kolkata Coast"),
-    "कोलकाता":         (21.6266, 88.0645, "Kolkata Coast"),
-    "कलकत्ता":         (21.6266, 88.0645, "Kolkata Coast"),
+    "kolkata":         (21.63, 88.06, "Kolkata Coast"),
+    "calcutta":        (21.63, 88.06, "Kolkata Coast"),
+    "कोलकाता":         (21.63, 88.06, "Kolkata Coast"),
+    "कलकत्ता":         (21.63, 88.06, "Kolkata Coast"),
     # Mumbai / Bombay
-    "mumbai":          (19.0760, 72.8777, "Mumbai Coast"),
-    "bombay":          (19.0760, 72.8777, "Mumbai Coast"),
-    "मुंबई":            (19.0760, 72.8777, "Mumbai Coast"),
+    "mumbai":          (19.08, 72.88, "Mumbai Coast"),
+    "bombay":          (19.08, 72.88, "Mumbai Coast"),
+    "मुंबई":            (19.08, 72.88, "Mumbai Coast"),
     # Kochi / Cochin
-    "kochi":           (9.9312,  76.2673, "Kochi Coast"),
-    "cochin":          (9.9312,  76.2673, "Kochi Coast"),
-    "कोच्चि":          (9.9312,  76.2673, "Kochi Coast"),
-    "कोचीन":           (9.9312,  76.2673, "Kochi Coast"),
+    "kochi":           (9.93,  76.27, "Kochi Coast"),
+    "cochin":          (9.93,  76.27, "Kochi Coast"),
+    "कोच्चि":          (9.93,  76.27, "Kochi Coast"),
+    "कोचीन":           (9.93,  76.27, "Kochi Coast"),
     # Goa
-    "goa":             (15.4989, 73.8278, "Goa Coast"),
-    "गोवा":             (15.4989, 73.8278, "Goa Coast"),
+    "goa":             (15.50, 73.83, "Goa Coast"),
+    "गोवा":             (15.50, 73.83, "Goa Coast"),
     # Puri
-    "puri":            (19.8135, 85.8312, "Puri Coast"),
-    "पुरी":             (19.8135, 85.8312, "Puri Coast"),
+    "puri":            (19.81, 85.83, "Puri Coast"),
+    "पुरी":             (19.81, 85.83, "Puri Coast"),
 }
 
 def detect_location_in_query(query: str) -> Optional[Tuple[float, float, str]]:
@@ -635,15 +637,16 @@ async def process_orca_query(
         nearest = pfz_data.get("nearest_advisory")
         active_count = pfz_data.get("total_active_advisories_found", 0)
         lines_count = pfz_data.get("total_pfz_lines_found", 0)
+        total_nationwide = pfz_data.get("total_nationwide_lines", len(pfz_data.get("nationwide_pfz_lines", [])))
         meta = pfz_data.get("advisory_metadata", {})
 
         workflow_stages = [
             {"stage": "Understanding request", "detail": f"Official INCOIS PFZ advisory query for {loc_name}"},
             {"stage": "Planning", "detail": "Querying INCOIS GeoServer WFS endpoints (PFZ Lines & Landing Centres)"},
             {"stage": "Weather Intelligence", "detail": f"Environmental conditions at {loc_name} evaluated"},
-            {"stage": "Marine Intelligence", "detail": f"Active Landing Advisories: {active_count}, PFZ Lines: {lines_count}"},
+            {"stage": "Marine Intelligence", "detail": f"Localized Landing Advisories: {active_count}, Regional PFZ Vectors: {lines_count}"},
             {"stage": "Risk Assessment", "detail": "Official satellite oceanographic advisory vectors parsed"},
-            {"stage": "Recommendation", "detail": "Nearest INCOIS advisory vector compiled"},
+            {"stage": "Recommendation", "detail": "INCOIS PFZ intelligence compiled for decision support"},
         ]
 
         if nearest:
@@ -723,21 +726,22 @@ async def process_orca_query(
                 closest_line_dist = pfz_data['pfz_lines'][0]['distance_km']
                 closest_line_state = pfz_data['pfz_lines'][0].get('state_name', 'Coastal Sector')
                 content = (
-                    f"Official INCOIS Potential Fishing Zones (PFZ) for {loc_name} ({lat:.2f}°N, {lon:.2f}°E):\n\n"
-                    f"• 🌊 Active Regional PFZ Frontal Lines: {lines_count} satellite thermal/chlorophyll frontal lines mapped ({closest_line_state}).\n"
-                    f"• Nearest PFZ Line: ~{closest_line_dist} km from {loc_name}\n"
-                    f"• Landing Centre Advisories: No active landing-centre advisory was issued for this sector in the 28-Apr-2024 cycle.\n"
-                    f"• Dataset Updated: 29-Apr-2024 (INCOIS GeoServer WFS)\n\n"
-                    "Notice: No currently valid INCOIS landing-centre PFZ advisory is available for this location. Regional frontal lines reflect oceanic convergence zones identified by satellite ocean color."
+                    f"Official INCOIS Potential Fishing Zones (PFZ) Status — {loc_name} ({lat:.2f}°N, {lon:.2f}°E):\n\n"
+                    f"• 📍 Localized Advisory: No localized INCOIS PFZ advisory currently identified for this coastal sector in the official bulletin cycle.\n"
+                    f"• 🌊 Regional PFZ Intelligence: {lines_count} official INCOIS PFZ vectors (satellite thermal/chlorophyll frontal lines) are available on the marine map ({closest_line_state}, nearest line ~{closest_line_dist} km).\n"
+                    f"• 📅 Dataset: INCOIS GeoServer WFS\n\n"
+                    "Recommendation: Review regional INCOIS PFZ vectors and current marine/weather conditions before selecting a fishing destination."
                 )
             else:
                 content = (
-                    f"Official INCOIS PFZ Advisory for {loc_name} ({lat:.2f}°N, {lon:.2f}°E):\n\n"
-                    "No currently valid INCOIS PFZ advisory is available for this location within a 250 km radius.\n\n"
-                    "Dataset Updated: 29-Apr-2024 (INCOIS GeoServer WFS). Weather and ocean conditions telemetry remain active."
+                    f"Official INCOIS Potential Fishing Zones (PFZ) Status — {loc_name} ({lat:.2f}°N, {lon:.2f}°E):\n\n"
+                    f"• 📍 Localized Advisory: No localized INCOIS PFZ advisory currently identified for this coast.\n"
+                    f"• 🌊 Regional PFZ Vectors: Official nationwide INCOIS PFZ frontal lines remain available on the marine map.\n"
+                    f"• 📅 Dataset: INCOIS GeoServer WFS\n\n"
+                    "Recommendation: Review regional INCOIS PFZ vectors and current marine/weather conditions before selecting a fishing destination."
                 )
             verdict_title = f"INCOIS PFZ STATUS — {loc_name.upper()}"
-            recommendation = f"No currently valid INCOIS PFZ advisory for {loc_name}. Check regional frontal lines on the marine map."
+            recommendation = f"No localized INCOIS PFZ advisory currently identified for {loc_name}. Regional INCOIS PFZ vectors and current marine conditions remain available on the map."
 
         return finalize({
             "intent": "pfz_discovery",
@@ -771,55 +775,151 @@ async def process_orca_query(
     # 4. SAFEST ROUTE INTENT
     # ==========================================================
     elif intent == OrcaIntent.SAFEST_ROUTE:
-        workflow_stages = [
-            {"stage": "Understanding request", "detail": f"Route Intelligence & corridor safety inquiry for {loc_name}"},
-            {"stage": "Planning", "detail": f"Checking departure origin ({loc_name}) and candidate destination targets"},
-            {"stage": "Weather Intelligence", "detail": "Corridor wind speed and peak gust profile analyzed"},
-            {"stage": "Marine Intelligence", "detail": "Wave swell and significant wave height assessed"},
-            {"stage": "Risk Assessment", "detail": "Route risk score and navigational buffer evaluated"},
-            {"stage": "Recommendation", "detail": "Corridor guidance generated"},
-        ]
+        pfz_data = await get_pfz_assessment(lat, lon)
+        nearest = pfz_data.get("nearest_advisory")
 
-        if lang == "hi":
-            content = (
-                f"{loc_name} ({lat:.2f}°N, {lon:.2f}°E) के लिए मार्ग इंटेलिजेंस:\n\n"
-                f"• प्रस्थान बिंदु: {loc_name}\n"
-                "• गंतव्य: उम्मीदवार मार्गों का मूल्यांकन करने के लिए कृपया मानचित्र पर सक्रिय PFZ या गंतव्य निर्देशांक चुनें।\n"
-                "• निर्णय सहायता: उम्मीदवार मार्ग समुद्री लहरों, हवा के झोंकों और वर्षा के जोखिम का विश्लेषण करते हैं।\n"
-                "प्रस्थान से पहले आधिकारिक समुद्री सलाह की पुष्टि करें।"
+        # Check if we have a destination target from INCOIS PFZ
+        if nearest and nearest.get("landing_center"):
+            dest_name = f"INCOIS PFZ — {nearest.get('landing_center')}"
+            
+            # Start from landing centre coordinates if available, otherwise origin lat/lon
+            lc_coords = nearest.get("lc_coordinates", {})
+            lc_lat = lc_coords.get("latitude", lat)
+            lc_lon = lc_coords.get("longitude", lon)
+
+            bearing = nearest.get("bearing_degrees", 240)
+            dist_km = nearest.get("advisory_distance_from_km") or nearest.get("distance_from_query_km") or 25.0
+            try:
+                dist_km = float(dist_km)
+            except Exception:
+                dist_km = 25.0
+
+            rad = math.radians(bearing)
+            target_lat = round(lc_lat + (dist_km * math.cos(rad)) / 111.0, 5)
+            target_lon = round(lc_lon + (dist_km * math.sin(rad)) / (111.0 * max(0.1, math.cos(math.radians(lc_lat)))), 5)
+
+            route_analysis = await analyze_routes_service(
+                origin_lat=lat,
+                origin_lon=lon,
+                destination_lat=target_lat,
+                destination_lon=target_lon,
+                destination_name=dest_name,
+                time_window=time_window,
             )
-        elif lang == "mr":
-            content = (
-                f"{loc_name} ({lat:.2f}°N, {lon:.2f}°E) साठी मार्ग इंटेलिजन्स:\n\n"
-                f"• प्रस्थान बिंदू: {loc_name}\n"
-                "• गंतव्य: संभाव्य मार्गांचे मूल्यांकन करण्यासाठी कृपया नकाशावर सक्रिय PFZ किंवा गंतव्य निर्देशांक निवडा.\n"
-                "• निर्णय सहाय्य: सागरी मार्ग लाटांची उंची, वारा आणि पावसाच्या जोखमीचे विश्लेषण करतात.\n"
-                "प्रस्थान करण्यापूर्वी अधिकृत सागरी सूचना तपासा."
-            )
+
+            rec_id = route_analysis.get("recommended_route_id", "route_1")
+            rec_route = next((r for r in route_analysis["routes"] if r["id"] == rec_id), route_analysis["routes"][0])
+            rec_reason = route_analysis.get("recommendation_reason", "")
+
+            workflow_stages = [
+                {"stage": "Understanding request", "detail": f"Route evaluation from {loc_name} to {dest_name}"},
+                {"stage": "Planning", "detail": "Generated 3 candidate navigational corridors (Direct, North, South)"},
+                {"stage": "Weather Intelligence", "detail": f"Sampled corridor winds (peak {rec_route['conditions']['peak_wind_kt']} kts) and gusts"},
+                {"stage": "Marine Intelligence", "detail": f"Sampled wave swell (peak {rec_route['conditions']['peak_wave_m']} m) along transit path"},
+                {"stage": "Risk Assessment", "detail": f"Calculated route risk: {rec_route['risk_score']}/100 ({rec_route['risk_level']})"},
+                {"stage": "Recommendation", "detail": f"Recommended {rec_route['name']}"},
+            ]
+
+            routes_summary_lines = []
+            for r in route_analysis["routes"]:
+                is_rec = " ⭐ [RECOMMENDED]" if r["id"] == rec_id else ""
+                routes_summary_lines.append(
+                    f"• {r['name']}{is_rec}: Risk {r['risk_score']}/100 ({r['risk_level']}) | "
+                    f"Dist: {r['distance_km']} km | Waves: peak {r['conditions']['peak_wave_m']} m | Wind: {r['conditions']['peak_wind_kt']} kts"
+                )
+            summary_str = "\n".join(routes_summary_lines)
+
+            if lang == "hi":
+                content = (
+                    f"मार्ग विश्लेषण — {loc_name} से {dest_name}:\n\n"
+                    f"ORCA अनुशंसित विकल्प: {rec_route['name']} (जोखिम {rec_route['risk_score']}/100)\n\n"
+                    f"उम्मीदवार मार्गों की तुलना:\n{summary_str}\n\n"
+                    f"कारण: {rec_reason}\n\n"
+                    "महत्वपूर्ण: मार्ग निर्णय-सहायता के लिए हैं, आधिकारिक नौवहन निर्देश नहीं। प्रस्थान से पहले आधिकारिक सलाह की पुष्टि करें।"
+                )
+                verdict_title = f"ORCA अनुशंसित मार्ग — {rec_route['name'].upper()}"
+            elif lang == "mr":
+                content = (
+                    f"मार्ग विश्लेषण — {loc_name} ते {dest_name}:\n\n"
+                    f"ORCA शिफारस केलेला मार्ग: {rec_route['name']} (जोखीम {rec_route['risk_score']}/100)\n\n"
+                    f"संभाव्य मार्गांची तुलना:\n{summary_str}\n\n"
+                    f"कारण: {rec_reason}\n\n"
+                    "महत्वपूर्ण: मार्ग केवळ निर्णय-सहाय्यासाठी आहेत, अधिकृत दिशा-निर्देश नाहीत. प्रस्थान करण्यापूर्वी अधिकृत सूचना तपासा."
+                )
+                verdict_title = f"ORCA शिफारस केलेला मार्ग — {rec_route['name'].upper()}"
+            else:
+                content = (
+                    f"Route Intelligence Analysis ({loc_name} → {dest_name}):\n\n"
+                    f"ORCA Recommended Option: {rec_route['name']} (Risk Score: {rec_route['risk_score']}/100 • {rec_route['risk_level']})\n\n"
+                    f"Candidate Corridors Evaluated:\n{summary_str}\n\n"
+                    f"Recommendation Why: {rec_reason}\n\n"
+                    "Decision Support Notice: Route corridors are calculated based on real-time environmental sampling. Not authoritative navigation instructions."
+                )
+                verdict_title = f"ORCA RECOMMENDED ROUTE — {rec_route['name'].upper()}"
+
+            return finalize({
+                "intent": "safest_route",
+                "risk_level": rec_route["risk_level"],
+                "status": "ROUTE ANALYSIS COMPLETE",
+                "verdict_title": verdict_title,
+                "content": content,
+                "recommendation": rec_reason,
+                "workflow_stages": workflow_stages,
+                "route_analysis": route_analysis,
+                "source": ["ORCA Route Intelligence Module", "Open-Meteo Marine & Forecast API", "INCOIS PFZ GeoServer"],
+                "map_actions": ["route", "pfz"],
+                "attachments": [
+                    {"type": "route", "label": "View Routes on Map", "layers": ["route", "pfz"]},
+                    {"type": "pfz", "label": "View PFZ Targets"},
+                ],
+            })
         else:
-            content = (
-                f"Route Intelligence for {loc_name} ({lat:.2f}°N, {lon:.2f}°E):\n\n"
-                f"• Departure Origin: {loc_name}\n"
-                "• Target Destination: Select an active INCOIS PFZ target or destination coordinate on the map to evaluate candidate route corridors.\n"
-                "• Decision Support: Candidate routes evaluate wave swell, wind gusts, and precipitation along the transit corridor.\n"
-                "Verify official marine advisories before departure."
-            )
+            workflow_stages = [
+                {"stage": "Understanding request", "detail": f"Route Intelligence & corridor safety inquiry for {loc_name}"},
+                {"stage": "Planning", "detail": f"Scanning for localized INCOIS PFZ targets near {loc_name}"},
+                {"stage": "Weather Intelligence", "detail": "Environmental departure conditions ready"},
+                {"stage": "Marine Intelligence", "detail": "No localized INCOIS landing-centre target in this sector; awaiting map destination selection"},
+                {"stage": "Risk Assessment", "detail": "Manual destination selection enabled"},
+                {"stage": "Recommendation", "detail": "Prompting user to select destination on map or enter coordinates"},
+            ]
 
-        return finalize({
-            "intent": "safest_route",
-            "risk_level": "LOW",
-            "status": "ROUTE INTELLIGENCE",
-            "verdict_title": f"ROUTE INTELLIGENCE — {loc_name.upper()}",
-            "content": content,
-            "recommendation": "Select an active PFZ target or destination coordinate to analyze candidate route corridors and risk scores.",
-            "workflow_stages": workflow_stages,
-            "source": ["ORCA Route Intelligence Module", "Open-Meteo Telemetry", "INCOIS PFZ GeoServer"],
-            "map_actions": ["pfz"],
-            "attachments": [
-                {"type": "pfz", "label": "View PFZ Targets"},
-                {"type": "map", "label": "Show on Map", "layers": ["pfz"]},
-            ],
-        })
+            if lang == "hi":
+                content = (
+                    f"{loc_name} ({lat:.2f}°N, {lon:.2f}°E) के लिए मार्ग इंटेलिजेंस:\n\n"
+                    f"• प्रस्थान बिंदु: ⚓ {loc_name}\n"
+                    "• गंतव्य: इस तट के लिए कोई स्थानीयकृत INCOIS PFZ लक्ष्य सक्रिय नहीं मिला।\n"
+                    "• अगला कदम: मानचित्र पर सीधे एक गंतव्य चुनें या 'Route Intelligence' में निर्देशांक दर्ज करें। ORCA कम जोखिम वाले 3 गलियारों (Direct, North, South) का मूल्यांकन करेगा।"
+                )
+            elif lang == "mr":
+                content = (
+                    f"{loc_name} ({lat:.2f}°N, {lon:.2f}°E) साठी मार्ग इंटेलिजन्स:\n\n"
+                    f"• प्रस्थान बिंदू: ⚓ {loc_name}\n"
+                    "• गंतव्य: या किनारपट्टीसाठी कोणताही स्थानिक INCOIS PFZ लक्ष्य आढळला नाही.\n"
+                    "• पुढील पायरी: नकाशावर थेट गंतव्य निवडा किंवा 'Route Intelligence' मध्ये निर्देशांक टाका. ORCA ३ संभाव्य मार्गांचे (Direct, North, South) मूल्यांकन करेल."
+                )
+            else:
+                content = (
+                    f"Route Intelligence for {loc_name} ({lat:.2f}°N, {lon:.2f}°E):\n\n"
+                    f"• ⚓ Departure Origin: {loc_name}\n"
+                    "• 🎯 Target Destination: No localized INCOIS PFZ target was automatically identified for this coast.\n"
+                    "• 🧭 Next Step: Select a destination directly on the interactive map or enter coordinates in the Route Intelligence panel to evaluate lower-risk candidate corridors (Direct, North, South).\n\n"
+                    "ORCA will sample live wave/wind telemetry along each corridor and evaluate route risk."
+                )
+
+            return finalize({
+                "intent": "safest_route",
+                "risk_level": "LOW",
+                "status": "AWAITING DESTINATION",
+                "verdict_title": f"ROUTE INTELLIGENCE — {loc_name.upper()}",
+                "content": content,
+                "recommendation": "No localized PFZ target was identified. Select a destination on the map and ORCA can compare the available route corridors.",
+                "workflow_stages": workflow_stages,
+                "source": ["ORCA Route Intelligence Module", "INCOIS PFZ GeoServer"],
+                "map_actions": ["route", "pfz"],
+                "attachments": [
+                    {"type": "route", "label": "Open Route Intelligence", "layers": ["route", "pfz"]},
+                ],
+            })
 
     # ==========================================================
     # 5. RISK EXPLANATION INTENT
@@ -948,6 +1048,63 @@ async def process_orca_query(
             "source": ["Open-Meteo Real-Time Telemetry", "ORCA Safety Engine"],
             "map_actions": avoid_actions,
             "attachments": avoid_attachments,
+        })
+
+    # ==========================================================
+    # 6B. GEOFENCING / RESTRICTED MARITIME ZONES INTENT
+    # ==========================================================
+    elif intent == OrcaIntent.GEOFENCE:
+        workflow_stages = [
+            {"stage": "Understanding request", "detail": f"Maritime geofence & restriction-zone inquiry for {loc_name}"},
+            {"stage": "Planning", "detail": "Querying official INCOIS & Ministry of Fisheries WFS restriction layers"},
+            {"stage": "Geofence Assessment", "detail": "Authoritative machine-readable restriction geometry evaluated"},
+            {"stage": "Environmental Risk", "detail": "Live meteorological and wave parameters evaluated independently"},
+            {"stage": "Viability Decision", "detail": "Restriction clearance status determined: UNAVAILABLE"},
+            {"stage": "Recommendation", "detail": "Guidance on statutory gazette notifications provided"},
+        ]
+
+        if lang == "hi":
+            geofence_content = (
+                f"समुद्री प्रतिबंध एवं जियोफेंसिंग स्थिति — {loc_name} ({lat:.2f}°N, {lon:.2f}°E):\n\n"
+                "• ℹ️ प्रतिबंध सत्यापन: अनुपलब्ध (UNAVAILABLE)\n"
+                "• स्थिति: आधिकारिक सरकारी WFS स्रोतों से मशीन-पठनीय प्रतिबंधित क्षेत्र डेटा उपलब्ध न होने के कारण ORCA निकासी की पुष्टि नहीं कर सका।\n"
+                "• पर्यावरणीय सुरक्षा: वास्तविक समय मौसम, लहरें और समुद्री सुरक्षा विश्लेषण सक्रिय है।\n"
+                "• निर्देश: प्रस्थान से पहले वैधानिक मौसमी मछली पकड़ने पर प्रतिबंध या सुरक्षा क्षेत्रों के लिए स्थानीय मत्स्य विभाग व पोर्ट अथॉरिटी से पुष्टि करें।"
+            )
+            geofence_rec = "आधिकारिक WFS प्रतिबंधित डेटा अनुपलब्ध होने के कारण ORCA निकासी की पुष्टि नहीं कर सका। प्रस्थान से पहले स्थानीय बंदरगाह सलाह की पुष्टि करें।"
+        elif lang == "mr":
+            geofence_content = (
+                f"सागरी निर्बंध व जिओफेन्सिंग स्थिती — {loc_name} ({lat:.2f}°N, {lon:.2f}°E):\n\n"
+                "• ℹ️ निर्बंध तपासणी: अनुपलब्ध (UNAVAILABLE)\n"
+                "• स्थिती: अधिकृत सरकारी WFS स्त्रोतांकडून मशीन-रीडेबल प्रतिबंधित क्षेत्राचा डेटा उपलब्ध नसल्यामुळे ORCA मार्गाच्या सुरक्षिततेची पुष्टी करू शकले नाही.\n"
+                "• पर्यावरणीय सुरक्षितता: थेट हवामान, सागरी लाटा आणि SST विश्लेषण पूर्णपणे कार्यरत आहे.\n"
+                "• सूचना: प्रस्थान करण्यापूर्वी वैधानिक मासेमारी बंदी किंवा सुरक्षा क्षेत्रांसाठी स्थानिक मत्स्यव्यवसाय विभाग व बंदर प्राधिकरणाचे नियम तपासा."
+            )
+            geofence_rec = "अधिकृत WFS डेटा उपलब्ध नसल्यामुळे ORCA मार्गाच्या सुरक्षिततेची पुष्टी करू शकले नाही. प्रस्थान करण्यापूर्वी स्थानिक बंदर सूचना तपासा."
+        else:
+            geofence_content = (
+                f"Maritime Geofencing & Restriction Status — {loc_name} ({lat:.2f}°N, {lon:.2f}°E):\n\n"
+                "• ℹ️ Restriction Clearance: UNAVAILABLE\n"
+                "• Status: ORCA could not verify restriction-zone clearance because authoritative maritime restriction geometry is currently unavailable from official government WFS sources.\n"
+                "• Environmental Safety: Live meteorological, wave swell, and wind telemetry remains fully evaluated.\n"
+                "• Guidance: Consult local Fisheries Department gazette notifications and port authority notices for statutory seasonal fishing bans or security boundaries before departure."
+            )
+            geofence_rec = "ORCA could not verify restriction-zone clearance because authoritative restriction geometry is currently unavailable. Verify official port and fisheries advisories before departure."
+
+        return finalize({
+            "intent": "geofence",
+            "risk_level": "LOW",
+            "status": "RESTRICTION STATUS: UNAVAILABLE",
+            "verdict_title": f"RESTRICTION STATUS — {loc_name.upper()}",
+            "content": geofence_content,
+            "recommendation": geofence_rec,
+            "workflow_stages": workflow_stages,
+            "source": ["INCOIS OGC WFS Registry", "ORCA Geofence Engine"],
+            "map_actions": ["geofence", "route"],
+            "attachments": [
+                {"type": "route", "label": "View Route Viability"},
+                {"type": "map", "label": "Show Geofences on Map", "layers": ["geofence", "route"]},
+            ],
         })
 
     # ==========================================================

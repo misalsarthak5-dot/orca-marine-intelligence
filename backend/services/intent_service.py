@@ -12,6 +12,7 @@ class OrcaIntent(str, Enum):
     SAFEST_ROUTE = "safest_route"
     RISK_EXPLANATION = "risk_explanation"
     AVOIDANCE = "avoidance"
+    GEOFENCE = "geofence"
     PRODUCTIVITY = "productivity"
     GENERAL_HELP = "general_help"
 
@@ -141,9 +142,22 @@ def detect_intent(query: str) -> OrcaIntent:
     ]):
         return OrcaIntent.PRODUCTIVITY
 
-    # 5. Avoidance Zones Inquiry (explicit "avoid")
+    # 5. Geofence & Maritime Restriction Zones Inquiry
     if any(kw in q for kw in [
-        "avoid", "areas should i avoid", "areas to avoid", "restricted area", "बचना", "दूर", "टाळा", "टाळावे"
+        "restricted zone", "restricted zones", "restriction zone", "restriction zones",
+        "fishing restriction", "fishing restrictions", "no-fishing", "no fishing zone",
+        "restricted area", "restricted areas", "geofence", "geofencing",
+        "inside a restricted zone", "clear of restricted", "can i use this route",
+        "marine protected area", "marine sanctuary",
+        "प्रतिबंधित क्षेत्र", "प्रतिबंधित", "मत्स्य प्रतिबंध", "मासेमारी बंदी",
+        "प्रतिबंधित क्षेत्रातून", "परवानगी आहे का", "अनुमति है क्या", "अनुमति है",
+        "प्रतिबंध"
+    ]):
+        return OrcaIntent.GEOFENCE
+
+    # 6. Avoidance Zones Inquiry (explicit "avoid")
+    if any(kw in q for kw in [
+        "avoid", "areas should i avoid", "areas to avoid", "बचना", "दूर", "टाळा", "टाळावे"
     ]):
         return OrcaIntent.AVOIDANCE
 
@@ -157,10 +171,12 @@ def detect_intent(query: str) -> OrcaIntent:
     ]):
         return OrcaIntent.MARINE_HAZARDS
 
-    # 7. Safest Route
+    # 7. Safest Route & Route Intelligence
     if any(kw in q for kw in [
-        "route", "safest route", "safe corridor", "navigation path", "navigational route",
-        "corridor", "मार्ग", "रस्ता"
+        "route", "routes", "safest route", "safe corridor", "navigation path", "navigational route",
+        "corridor", "corridors", "lower risk route", "best route", "which route", "suggest a route",
+        "route to pfz", "route to fishing", "मार्ग", "रस्ता", "रास्ता", "कम जोखिम वाला रास्ता",
+        "रास्ता बताओ", "मार्ग कोणता", "कोणता मार्ग", "कोणता रस्ता", "कमी जोखमीचा मार्ग"
     ]):
         return OrcaIntent.SAFEST_ROUTE
 

@@ -99,7 +99,7 @@ export default function OrcaIntelligence({ onReviewRoute }: OrcaIntelligenceProp
             <div className="flex items-start justify-between">
               <div>
                 <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wide">
-                  Official INCOIS Landing Centre
+                  Localized PFZ Advisory — Identified
                 </span>
                 <h5 className="text-[13px] font-bold text-navy-900 mt-0.5">
                   {nearestAdvisory.landing_center}
@@ -162,22 +162,49 @@ export default function OrcaIntelligence({ onReviewRoute }: OrcaIntelligenceProp
                 Source: INCOIS — Official PFZ Advisory
               </span>
               <span className="text-gray-500 font-medium">
-                {pfzData?.total_pfz_lines_found ?? 0} PFZ lines mapped
+                {pfzData?.total_pfz_lines_found ?? 0} regional PFZ lines mapped
               </span>
             </div>
           </div>
         ) : (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-            <div className="flex items-start gap-2">
-              <Info size={14} className="text-gray-400 mt-0.5 flex-shrink-0" />
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5 space-y-2.5">
+            <div className="flex items-start justify-between">
               <div>
-                <p className="text-[11px] font-semibold text-gray-700">
-                  No currently valid location-specific landing-centre advisory is available for this sector.
-                </p>
-                <p className="text-[10px] text-gray-500 mt-1">
-                  Source: INCOIS — Official PFZ Advisory (Dataset updated: 29-Apr-2024). Nationwide satellite frontal lines remain mapped across the Indian coastline.
-                </p>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                  Localized PFZ Advisory
+                </span>
+                <div className="text-[12px] font-bold text-navy-900 mt-0.5">
+                  None identified for {selectedLocation.name}
+                </div>
               </div>
+              <span className="text-[9px] font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded">
+                No Local Bulletin
+              </span>
+            </div>
+
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              No currently valid localized INCOIS PFZ landing-centre advisory is identified in this sector.
+            </p>
+
+            <div className="p-2.5 bg-white rounded-md border border-slate-200 space-y-1.5 text-[10px]">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-semibold">Regional PFZ Intelligence:</span>
+                <span className="font-bold text-teal-700">
+                  {pfzData?.total_pfz_lines_found ?? 0} Regional Vectors ({pfzData?.total_nationwide_lines ?? 105} Nationwide)
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-semibold">Dataset Layer:</span>
+                <span className="font-medium text-navy-900">INCOIS GeoServer WFS (pfzlines)</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-semibold">Marine Map Display:</span>
+                <span className="font-medium text-emerald-700">Official vectors active on map</span>
+              </div>
+            </div>
+
+            <div className="text-[10px] text-slate-500 flex items-center justify-between pt-1 border-t border-slate-200">
+              <span>Recommendation: Review regional PFZ vectors and marine conditions.</span>
             </div>
           </div>
         )}

@@ -9,6 +9,8 @@ from services.safety_service import calculate_safety_assessment
 from services.hazard_service import evaluate_hazards
 from services.chlorophyll_service import get_chlorophyll_data
 from services.pfz_service import get_pfz_assessment
+from services.geofence_service import get_active_geofences
+from services.route_service import analyze_routes_service
 
 # Load environment configuration
 load_dotenv()
@@ -221,6 +223,29 @@ async def get_pfz(
             detail=f"Error retrieving official INCOIS PFZ advisory data: {str(e)}",
         )
 
+@app.get("/api/geofences", tags=["Decision Support"])
+async def get_geofences(
+    lat: Optional[float] = Query(None, description="Latitude (alias: latitude)"),
+    latitude: Optional[float] = Query(None, description="Latitude"),
+    lon: Optional[float] = Query(None, description="Longitude (alias: longitude)"),
+    longitude: Optional[float] = Query(None, description="Longitude"),
+    radius_km: Optional[float] = Query(250.0, description="Search radius in kilometers"),
+):
+    """
+    Retrieve active maritime restriction zones, no-fishing areas, and avoidance geofences.
+    Returns authoritative geometries when published by official government sources,
+    or honestly returns UNAVAILABLE when machine-readable layers are not published.
+    """
+    val_lat, val_lon = parse_and_validate_coords(lat, latitude, lon, longitude)
+    try:
+        data = await get_active_geofences(lat=val_lat, lon=val_lon, radius_km=radius_km or 250.0)
+        return data
+    except Exception as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Error retrieving geofence data: {str(e)}",
+        )
+
 @app.get("/api/validate-marine", tags=["Marine & Oceanography"])
 async def validate_marine_point(
     lat: Optional[float] = Query(None, description="Latitude (alias: latitude)"),
@@ -250,6 +275,65 @@ async def validate_marine_point(
             "longitude": val_lon,
             "wave_height": None,
         }
+
+class RouteAnalysisRequest(BaseModel):
+    origin_lat: float
+    origin_lon: float
+    destination_lat: float
+    destination_lon: float
+    destination_name: Optional[str] = "Designated Target"
+    time_window: Optional[str] = "tomorrow_morning"
+
+@app.post("/api/routes/analyze", tags=["Route Intelligence"])
+async def analyze_routes(req: RouteAnalysisRequest):
+    """
+    Generate 2-3 candidate marine corridors between origin and destination,
+    sample live Open-Meteo telemetry along each route, compute risk scores,
+    and return an explainable lower-risk recommendation.
+    """
+    try:
+        data = await analyze_routes_service(
+            origin_lat=req.origin_lat,
+            origin_lon=req.origin_lon,
+            destination_lat=req.destination_lat,
+            destination_lon=req.destination_lon,
+            destination_name=req.destination_name or "Designated Target",
+            time_window=req.time_window or "tomorrow_morning",
+        )
+        return data
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error evaluating candidate routes: {str(e)}",
+        )
+
+@app.get("/api/routes/analyze", tags=["Route Intelligence"])
+async def analyze_routes_get(
+    origin_lat: float = Query(..., description="Origin latitude"),
+    origin_lon: float = Query(..., description="Origin longitude"),
+    destination_lat: float = Query(..., description="Destination latitude"),
+    destination_lon: float = Query(..., description="Destination longitude"),
+    destination_name: Optional[str] = Query("Designated Target", description="Destination name"),
+    time_window: Optional[str] = Query("tomorrow_morning", description="Time window"),
+):
+    """
+    GET alias for candidate marine route analysis.
+    """
+    try:
+        data = await analyze_routes_service(
+            origin_lat=origin_lat,
+            origin_lon=origin_lon,
+            destination_lat=destination_lat,
+            destination_lon=destination_lon,
+            destination_name=destination_name or "Designated Target",
+            time_window=time_window or "tomorrow_morning",
+        )
+        return data
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error evaluating candidate routes: {str(e)}",
+        )
 
 class AskRequest(BaseModel):
     query: str

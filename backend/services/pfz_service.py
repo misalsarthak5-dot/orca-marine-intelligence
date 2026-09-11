@@ -208,7 +208,7 @@ async def get_pfz_assessment(lat: float, lon: float, max_radius_km: float = 250.
 
     # 2. Process ALL real INCOIS PFZ lines (nationwide) and compute distance to query location
     nationwide_lines = []
-    relevant_lines = []
+    regional_lines = []
     for feat in lines_features:
         props = feat.get("properties", {})
         geom = feat.get("geometry", {})
@@ -240,10 +240,11 @@ async def get_pfz_assessment(lat: float, lon: float, max_radius_km: float = 250.
         }
 
         nationwide_lines.append(line_obj)
-        if line_min_dist <= (max_radius_km + 150.0):
-            relevant_lines.append(line_obj)
+        # Regional lines within 500 km search envelope
+        if line_min_dist <= max(max_radius_km, 500.0):
+            regional_lines.append(line_obj)
 
-    relevant_lines.sort(key=lambda x: x["distance_km"])
+    regional_lines.sort(key=lambda x: x["distance_km"])
     nationwide_lines.sort(key=lambda x: x["distance_km"])
 
     # Determine overall status and freshness
@@ -254,8 +255,10 @@ async def get_pfz_assessment(lat: float, lon: float, max_radius_km: float = 250.
 
     if advisory_available:
         advisory_message = f"Official INCOIS landing-centre advisory available for {nearest_advisory['landing_center']} sector."
+    elif len(nationwide_lines) > 0:
+        advisory_message = "No localized INCOIS PFZ advisory currently identified. Regional INCOIS PFZ vectors are shown on the map."
     else:
-        advisory_message = "No current location-specific landing-centre advisory found for this sector; nationwide satellite PFZ frontal lines remain active."
+        advisory_message = "No official INCOIS PFZ vector data currently available."
 
     return {
         "available": has_pfz_data,
@@ -269,8 +272,10 @@ async def get_pfz_assessment(lat: float, lon: float, max_radius_km: float = 250.
         "nearest_advisory": nearest_advisory,
         "total_active_advisories_found": len(active_advisories),
         "active_advisories": active_advisories[:20],  # Top 20 nearby
-        "total_pfz_lines_found": len(relevant_lines),
-        "pfz_lines": relevant_lines[:15],  # Regional closest lines
+        "total_pfz_lines_found": len(regional_lines),
+        "pfz_lines": regional_lines[:15],  # Regional closest lines
+        "regional_pfz_lines": regional_lines,
+        "total_regional_lines": len(regional_lines),
         "nationwide_pfz_lines": nationwide_lines,  # All nationwide INCOIS PFZ lines for map rendering
         "total_nationwide_lines": len(nationwide_lines),
         "advisory_metadata": {
@@ -280,6 +285,8 @@ async def get_pfz_assessment(lat: float, lon: float, max_radius_km: float = 250.
             "dataset_updated": "29-Apr-2024",
             "dataset_layer": "LandingCenters_29Apr2024 / PFZ_Automation:pfzlines",
             "is_currently_valid": is_currently_valid,
+            "localized_advisory_status": "IDENTIFIED" if advisory_available else "NONE_IDENTIFIED",
+            "regional_vectors_status": "AVAILABLE" if len(regional_lines) > 0 else "NONE_IN_REGION",
             "validity_date": nearest_advisory.get("validity_date") if nearest_advisory else None,
             "validity_formatted": nearest_advisory.get("validity_formatted") if nearest_advisory else "Reference dataset / No sector bulletin",
             "validity_status": nearest_advisory.get("validity_status") if nearest_advisory else "NO_SECTOR_ADVISORY",

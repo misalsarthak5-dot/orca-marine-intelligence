@@ -24,46 +24,46 @@ export interface AssessmentLocation {
  */
 export const COASTAL_LOCATION_COORDS: Record<string, AssessmentLocation> = {
   // Port Blair (multi-word first)
-  'port blair':      { name: 'Port Blair',              latitude: 11.6234, longitude: 92.7265 },
-  'पोर्ट ब्लेयर':     { name: 'Port Blair',              latitude: 11.6234, longitude: 92.7265 },
-  'पोर्ट ब्लेअर':     { name: 'Port Blair',              latitude: 11.6234, longitude: 92.7265 },
+  'port blair':      { name: 'Port Blair',              latitude: 11.62, longitude: 92.73 },
+  'पोर्ट ब्लेयर':     { name: 'Port Blair',              latitude: 11.62, longitude: 92.73 },
+  'पोर्ट ब्लेअर':     { name: 'Port Blair',              latitude: 11.62, longitude: 92.73 },
   // Visakhapatnam / Vizag
-  'visakhapatnam':   { name: 'Visakhapatnam Coast',     latitude: 17.6868, longitude: 83.2185 },
-  'vizag':           { name: 'Visakhapatnam Coast',     latitude: 17.6868, longitude: 83.2185 },
-  'विशाखापत्तनम':    { name: 'Visakhapatnam Coast',     latitude: 17.6868, longitude: 83.2185 },
-  'विझाग':           { name: 'Visakhapatnam Coast',     latitude: 17.6868, longitude: 83.2185 },
+  'visakhapatnam':   { name: 'Visakhapatnam Coast',     latitude: 17.69, longitude: 83.22 },
+  'vizag':           { name: 'Visakhapatnam Coast',     latitude: 17.69, longitude: 83.22 },
+  'विशाखापत्तनम':    { name: 'Visakhapatnam Coast',     latitude: 17.69, longitude: 83.22 },
+  'विझाग':           { name: 'Visakhapatnam Coast',     latitude: 17.69, longitude: 83.22 },
   // Ratnagiri
-  'ratnagiri':       { name: 'Ratnagiri Coast',        latitude: 16.9902, longitude: 73.3120 },
-  'रत्नागिरी':        { name: 'Ratnagiri Coast',        latitude: 16.9902, longitude: 73.3120 },
+  'ratnagiri':       { name: 'Ratnagiri Coast',        latitude: 16.99, longitude: 73.31 },
+  'रत्नागिरी':        { name: 'Ratnagiri Coast',        latitude: 16.99, longitude: 73.31 },
   // Mangalore / Mangaluru
-  'mangalore':       { name: 'Mangalore Coast',        latitude: 12.9141, longitude: 74.8560 },
-  'mangaluru':       { name: 'Mangalore Coast',        latitude: 12.9141, longitude: 74.8560 },
-  'मंगलोर':          { name: 'Mangalore Coast',        latitude: 12.9141, longitude: 74.8560 },
-  'मंगळूर':          { name: 'Mangalore Coast',        latitude: 12.9141, longitude: 74.8560 },
+  'mangalore':       { name: 'Mangalore Coast',        latitude: 12.91, longitude: 74.86 },
+  'mangaluru':       { name: 'Mangalore Coast',        latitude: 12.91, longitude: 74.86 },
+  'मंगलोर':          { name: 'Mangalore Coast',        latitude: 12.91, longitude: 74.86 },
+  'मंगळूर':          { name: 'Mangalore Coast',        latitude: 12.91, longitude: 74.86 },
   // Chennai / Madras
-  'chennai':         { name: 'Chennai Coast',           latitude: 13.0827, longitude: 80.2707 },
-  'madras':          { name: 'Chennai Coast',           latitude: 13.0827, longitude: 80.2707 },
-  'चेन्नई':           { name: 'Chennai Coast',           latitude: 13.0827, longitude: 80.2707 },
+  'chennai':         { name: 'Chennai Coast',           latitude: 13.08, longitude: 80.27 },
+  'madras':          { name: 'Chennai Coast',           latitude: 13.08, longitude: 80.27 },
+  'चेन्नई':           { name: 'Chennai Coast',           latitude: 13.08, longitude: 80.27 },
   // Kolkata / Calcutta
-  'kolkata':         { name: 'Kolkata Coast',           latitude: 21.6266, longitude: 88.0645 },
-  'calcutta':        { name: 'Kolkata Coast',           latitude: 21.6266, longitude: 88.0645 },
-  'कोलकाता':         { name: 'Kolkata Coast',           latitude: 21.6266, longitude: 88.0645 },
-  'कलकत्ता':         { name: 'Kolkata Coast',           latitude: 21.6266, longitude: 88.0645 },
+  'kolkata':         { name: 'Kolkata Coast',           latitude: 21.63, longitude: 88.06 },
+  'calcutta':        { name: 'Kolkata Coast',           latitude: 21.63, longitude: 88.06 },
+  'कोलकाता':         { name: 'Kolkata Coast',           latitude: 21.63, longitude: 88.06 },
+  'कलकत्ता':         { name: 'Kolkata Coast',           latitude: 21.63, longitude: 88.06 },
   // Mumbai / Bombay
-  'mumbai':          { name: 'Mumbai Coast',           latitude: 19.0760, longitude: 72.8777 },
-  'bombay':          { name: 'Mumbai Coast',           latitude: 19.0760, longitude: 72.8777 },
-  'मुंबई':            { name: 'Mumbai Coast',           latitude: 19.0760, longitude: 72.8777 },
+  'mumbai':          { name: 'Mumbai Coast',           latitude: 19.08, longitude: 72.88 },
+  'bombay':          { name: 'Mumbai Coast',           latitude: 19.08, longitude: 72.88 },
+  'मुंबई':            { name: 'Mumbai Coast',           latitude: 19.08, longitude: 72.88 },
   // Kochi / Cochin
-  'kochi':           { name: 'Kochi Coast',             latitude: 9.9312,  longitude: 76.2673 },
-  'cochin':          { name: 'Kochi Coast',             latitude: 9.9312,  longitude: 76.2673 },
-  'कोच्चि':          { name: 'Kochi Coast',             latitude: 9.9312,  longitude: 76.2673 },
-  'कोचीन':           { name: 'Kochi Coast',             latitude: 9.9312,  longitude: 76.2673 },
+  'kochi':           { name: 'Kochi Coast',             latitude: 9.93,  longitude: 76.27 },
+  'cochin':          { name: 'Kochi Coast',             latitude: 9.93,  longitude: 76.27 },
+  'कोच्चि':          { name: 'Kochi Coast',             latitude: 9.93,  longitude: 76.27 },
+  'कोचीन':           { name: 'Kochi Coast',             latitude: 9.93,  longitude: 76.27 },
   // Goa
-  'goa':             { name: 'Goa Coast',              latitude: 15.4989, longitude: 73.8278 },
-  'गोवा':             { name: 'Goa Coast',              latitude: 15.4989, longitude: 73.8278 },
+  'goa':             { name: 'Goa Coast',              latitude: 15.50, longitude: 73.83 },
+  'गोवा':             { name: 'Goa Coast',              latitude: 15.50, longitude: 73.83 },
   // Puri
-  'puri':            { name: 'Puri Coast',              latitude: 19.8135, longitude: 85.8312 },
-  'पुरी':             { name: 'Puri Coast',              latitude: 19.8135, longitude: 85.8312 },
+  'puri':            { name: 'Puri Coast',              latitude: 19.81, longitude: 85.83 },
+  'पुरी':             { name: 'Puri Coast',              latitude: 19.81, longitude: 85.83 },
 };
 
 function escapeRegex(str: string): string {
@@ -409,8 +409,54 @@ export async function processQuery(
     };
   }
 
+  // 2a. Geofencing & Restricted Zone Inquiry (Honest Unavailable State / Policy)
+  if (
+    q.includes('geofence') || q.includes('restricted zone') || q.includes('restricted area') ||
+    q.includes('no-fishing zone') || q.includes('no fishing zone') || q.includes('avoidance zone') ||
+    q.includes('marine sanctuary') || q.includes('conservation zone') ||
+    q.includes('प्रतिबंधित') || q.includes('निषेध') || q.includes('बंदी क्षेत्र') ||
+    q.includes('संरक्षित क्षेत्र') || q.includes('बंदी')
+  ) {
+    const effectiveLoc = detectLocationInQuery(query) || location;
+    const locName = effectiveLoc?.name || 'Selected Location';
+    const lat = effectiveLoc?.latitude;
+    const lon = effectiveLoc?.longitude;
+    const coordStr = lat !== undefined && lon !== undefined ? ` (${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E)` : '';
+
+    let content = '';
+    let verdictTitle = '';
+    let recommendation = '';
+
+    if (lang === 'hi') {
+      content = `भू-बाड़ (Geofence) और प्रतिबंधित समुद्री क्षेत्र स्थिति — ${locName}${coordStr}:\n\n• 🛡️ डेटा स्थिति: आधिकारिक प्रतिबंधित क्षेत्र डेटा अनुपलब्ध (UNAVAILABLE)\n• 🔍 डेटा स्रोत समीक्षा: INCOIS WFS / मत्स्य पालन विभाग (MoF)\n• 📋 स्थिति: भारतीय समुद्री जल के लिए कोई केंद्रीकृत मशीन-पठनीय डिजिटल प्रतिबंधित क्षेत्र WFS परत प्रकाशित नहीं है।\n• ⚓ सुरक्षा सिफारिश: तटीय नौवहन और मत्स्य पालन के लिए स्थानीय मत्स्य पालन विभाग (State Fisheries Dept), तटरक्षक बल (Indian Coast Guard) और स्थानीय बंदरगाह नियमों का पालन करें।\n\nORCA कोई कृत्रिम या मनगढ़ंत प्रतिबंधित क्षेत्र प्रदर्शित नहीं करता है।`;
+      verdictTitle = `प्रतिबंधित क्षेत्र स्थिति — ${locName.toUpperCase()}`;
+      recommendation = `${locName} के लिए आधिकारिक डिजिटल प्रतिबंधित क्षेत्र परत अनुपलब्ध है। स्थानीय तटरक्षक और मत्स्य पालन नियमों का पालन करें।`;
+    } else if (lang === 'mr') {
+      content = `जिओफेन्स (Geofence) व प्रतिबंधित सागरी क्षेत्र स्थिती — ${locName}${coordStr}:\n\n• 🛡️ डेटा स्थिती: अधिकृत प्रतिबंधित क्षेत्र डेटा अनुपलब्ध (UNAVAILABLE)\n• 🔍 डेटा स्रोत तपासणी: INCOIS WFS / मत्स्यव्यवसाय विभाग (MoF)\n• 📋 सद्यस्थिती: भारतीय सागरी क्षेत्रासाठी कोणतीही केंद्रीकृत मशीन-वाचनीय डिजिटल प्रतिबंधित क्षेत्र WFS लेअर उपलब्ध नाही.\n• ⚓ सुरक्षा सूचना: स्थानिक मत्स्यव्यवसाय विभाग, तटरक्षक दल (Indian Coast Guard) आणि बंदर नियमांचे पालन करा.\n\nORCA कोणतेही बनावट किंवा अंदाजे प्रतिबंधित क्षेत्र दाखवत नाही.`;
+      verdictTitle = `प्रतिबंधित क्षेत्र स्थिती — ${locName.toUpperCase()}`;
+      recommendation = `${locName} साठी अधिकृत डिजिटल प्रतिबंधित क्षेत्र लेअर अनुपलब्ध आहे. स्थानिक तटरक्षक दल व बंदर नियमांचे पालन करा.`;
+    } else {
+      content = `Geofence & Restricted Maritime Zone Intelligence for ${locName}${coordStr}:\n\n• 🛡️ Restriction Data Status: UNAVAILABLE (Production)\n• 🔍 Investigated Sources: INCOIS GeoServer WFS / Ministry of Fisheries (MoF)\n• 📋 Current Status: No centralized, machine-readable digital restricted zone / marine sanctuary WFS layer is currently published for Indian EEZ waters.\n• ⚓ Navigational Guidance: Adhere to local State Fisheries Department seasonal bans, Indian Coast Guard maritime security notices, and local Port Trust advisories.\n\nORCA strictly prohibits fabricating synthetic or unverified restriction zones in production.`;
+      verdictTitle = `RESTRICTED ZONE STATUS — ${locName.toUpperCase()}`;
+      recommendation = `Official digital restricted-zone boundaries for ${locName} are currently unavailable. Comply with local Coast Guard and Fisheries Department directives.`;
+    }
+
+    return {
+      id: `resp-geofence-${Date.now()}`,
+      role: 'orca',
+      content,
+      timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }) + ' IST',
+      intent: 'geofence',
+      riskLevel: 'low',
+      verdictTitle,
+      recommendation,
+      mapActions: ['route' as MapLayerType],
+      attachments: [],
+    };
+  }
+
   // 2b. Avoidance & Hazard Zones (navigational)
-  if (q.includes('avoid') || q.includes('danger zone') || q.includes('restricted') || q.includes('बचना') || q.includes('दूर') || q.includes('टाळा')) {
+  if (q.includes('avoid') || q.includes('danger zone') || q.includes('बचना') || q.includes('दूर') || q.includes('टाळा')) {
     return {
       id: `resp-avoid-${Date.now()}`,
       role: 'orca',
@@ -524,19 +570,20 @@ export async function processQuery(
           let content = '';
           let verdictTitle = '';
           let recommendation = '';
+          const regionalLinesCount = pfzData.total_pfz_lines_found || 0;
 
           if (lang === 'hi') {
-            content = `250 किमी के दायरे में ${locName} के लिए कोई वर्तमान INCOIS लैंडिंग-सेंटर PFZ सलाह उपलब्ध नहीं है।\n\nडेटासेट अद्यतन: 29-Apr-2024 (INCOIS GeoServer WFS)। क्षेत्रीय उपग्रह थर्मल फ्रंट रेखाएं समुद्री मानचित्र पर सक्रिय हैं।`;
-            verdictTitle = `कोई सक्रिय PFZ सलाह नहीं — ${locName.toUpperCase()}`;
-            recommendation = `${locName} के पास वर्तमान में कोई स्थानीय थर्मल फ्रंट सलाह नहीं है। मानचित्र पर क्षेत्रीय रेखाओं की जाँच करें।`;
+            content = `आधिकारिक INCOIS संभावित मत्स्य पालन क्षेत्र (PFZ) स्थिति — ${locName} (${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E):\n\n• 📍 स्थानीय सलाह: इस तटीय क्षेत्र के लिए कोई स्थानीयकृत INCOIS PFZ बुलेटिन सलाह सक्रिय नहीं मिली।\n• 🌊 क्षेत्रीय PFZ इंटेलिजेंस: ${regionalLinesCount} आधिकारिक INCOIS उपग्रह थर्मल/क्लोरोफिल फ्रंट रेखाएं समुद्री मानचित्र पर उपलब्ध हैं।\n• 📅 डेटासेट: INCOIS GeoServer WFS\n\nसिफारिश: मछली पकड़ने के गंतव्य का चयन करने से पहले क्षेत्रीय PFZ रेखाओं और वर्तमान मौसम/समुद्री परिस्थितियों की समीक्षा करें।`;
+            verdictTitle = `INCOIS PFZ स्थिति — ${locName.toUpperCase()}`;
+            recommendation = `${locName} के पास कोई स्थानीय लैंडिंग-सेंटर सलाह नहीं है। समुद्री मानचित्र पर क्षेत्रीय INCOIS PFZ रेखाओं की जाँच करें।`;
           } else if (lang === 'mr') {
-            content = `250 किमी परिसरामध्ये ${locName} साठी कोणताही वर्तमान INCOIS लँडिंग-सेंटर PFZ सल्ला उपलब्ध नाही.\n\nडेटासेट अद्यतन: 29-Apr-2024 (INCOIS GeoServer WFS). प्रादेशिक उपग्रह थर्मल फ्रंट रेषा सागरी नकाशावर सक्रिय आहेत.`;
-            verdictTitle = `सक्रिय PFZ सल्ला नाही — ${locName.toUpperCase()}`;
-            recommendation = `${locName} जवळ सध्या कोणताही स्थानिक थर्मल फ्रंट सल्ला नाही. नकाशावर प्रादेशिक रेषा तपासा.`;
+            content = `अधिकृत INCOIS संभाव्य मासेमारी क्षेत्र (PFZ) स्थिती — ${locName} (${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E):\n\n• 📍 स्थानिक सल्ला: या किनारपट्टी क्षेत्रासाठी कोणताही स्थानिक INCOIS PFZ बुलेटिन सल्ला आढळला नाही.\n• 🌊 प्रादेशिक PFZ इंटेलिजन्स: ${regionalLinesCount} अधिकृत INCOIS उपग्रह फ्रंट रेषा सागरी नकाशावर उपलब्ध आहेत.\n• 📅 डेटासेट: INCOIS GeoServer WFS\n\nशिफारस: मासेमारीचे ठिकाण निवडण्यापूर्वी प्रादेशिक PFZ रेषा व थेट सागरी परिस्थिती तपासा.`;
+            verdictTitle = `INCOIS PFZ स्थिती — ${locName.toUpperCase()}`;
+            recommendation = `${locName} जवळ सध्या कोणताही स्थानिक PFZ सल्ला नाही. सागरी नकाशावर प्रादेशिक INCOIS PFZ रेषा तपासा.`;
           } else {
-            content = `No currently valid INCOIS landing-centre PFZ advisory is available for ${locName} within a 250 km radius.\n\nDataset Updated: 29-Apr-2024 (INCOIS GeoServer WFS). Source: INCOIS — Official PFZ Advisory (Ministry of Earth Sciences, Govt. of India). Regional satellite frontal lines remain mapped across the coastline.`;
-            verdictTitle = `NO ACTIVE LOCAL PFZ ADVISORY — ${locName.toUpperCase()}`;
-            recommendation = `No active local landing-centre advisory near ${locName} currently. Regional satellite frontal lines remain mapped on the marine map.`;
+            content = `Official INCOIS Potential Fishing Zones (PFZ) Status — ${locName} (${lat.toFixed(2)}°N, ${lon.toFixed(2)}°E):\n\n• 📍 Localized Advisory: No localized INCOIS PFZ advisory currently identified for this coastal sector in the official bulletin cycle.\n• 🌊 Regional PFZ Intelligence: ${regionalLinesCount} official INCOIS PFZ vectors (satellite thermal/chlorophyll frontal lines) are available on the marine map.\n• 📅 Dataset: INCOIS GeoServer WFS\n\nRecommendation: Review regional INCOIS PFZ vectors and current marine/weather conditions before selecting a fishing destination.`;
+            verdictTitle = `INCOIS PFZ STATUS — ${locName.toUpperCase()}`;
+            recommendation = `No localized INCOIS PFZ advisory currently identified for ${locName}. Regional INCOIS PFZ vectors remain available on the marine map.`;
           }
 
           return {
@@ -549,7 +596,9 @@ export async function processQuery(
             verdictTitle,
             recommendation,
             mapActions: ['pfz' as MapLayerType],
-            attachments: [],
+            attachments: [
+              { type: 'map' as const, label: 'Show PFZ on Map', layers: ['pfz' as MapLayerType] },
+            ],
           };
         }
       } catch {
