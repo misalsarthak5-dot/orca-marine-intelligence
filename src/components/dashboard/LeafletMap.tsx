@@ -382,6 +382,7 @@ export default function LeafletMap({
   onMapClickCoordinates,
 }: LeafletMapProps) {
   const { selectPointFromMap, liveData } = useLocation();
+  const [tileError, setTileError] = React.useState(false);
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const layerGroupsRef = useRef<Record<string, L.LayerGroup>>({});
@@ -427,11 +428,22 @@ export default function LeafletMap({
       ? `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=${encodeURIComponent(cartoApiKey)}`
       : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
-    L.tileLayer(basemapUrl, {
+    const tileLayer = L.tileLayer(basemapUrl, {
       subdomains: 'abcd',
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    }).addTo(map);
+    });
+
+    tileLayer.on('tileerror', () => {
+      setTileError(true);
+    });
+
+    tileLayer.on('load', () => {
+      // If tiles load successfully, reset error
+      setTileError(false);
+    });
+
+    tileLayer.addTo(map);
 
     // Initial selected assessment point marker (Origin marker)
     const marker = L.marker(initialCenter, {
@@ -914,10 +926,18 @@ export default function LeafletMap({
   }, [routes, recommendedRouteId, selectedRouteId, destination, activeLayers, selectedLocation, onSelectRoute]);
 
   return (
-    <div
-      ref={containerRef}
-      className="absolute inset-0"
-      style={{ zIndex: 1 }}
-    />
+    <div className="relative w-full h-full">
+      <div
+        ref={containerRef}
+        className="absolute inset-0"
+        style={{ zIndex: 1 }}
+      />
+      {tileError && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[600] bg-amber-950/90 border border-amber-500/40 text-amber-200 text-[11px] font-medium px-3 py-1 rounded-full shadow-lg backdrop-blur-sm pointer-events-none flex items-center gap-1.5 animate-in fade-in duration-300">
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          Map tiles unavailable offline. Vector layers and cached routes remain visible.
+        </div>
+      )}
+    </div>
   );
 }

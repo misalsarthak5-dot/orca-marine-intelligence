@@ -5,6 +5,7 @@ import { Bell, User, Clock, Shield, Globe } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n';
 import { useLocation } from '@/lib/location';
 import { Language } from '@/types';
+import { ConnectivityStatusBadge } from '@/components/common/ConnectivityStatusBadge';
 
 const languages: { code: Language; label: string }[] = [
   { code: 'en', label: 'EN' },
@@ -63,10 +64,8 @@ export default function Header() {
 
       {/* Right: Controls */}
       <div className="flex items-center gap-3 flex-shrink-0">
-        {/* Last updated */}
-        <span className="text-[10px] text-gray-400 font-mono">
-          {t('header_lastUpdated')}: {isLoading ? 'Updating...' : (lastUpdated || '09:42 IST')}
-        </span>
+        {/* Global Connectivity Indicator */}
+        <ConnectivityStatusBadge />
 
         {/* Language selector */}
         <div className="flex items-center gap-0.5 bg-gray-100 rounded-md p-0.5">

@@ -470,15 +470,28 @@ export default function RouteIntelligence() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">
-                    {t('route_recommended') || 'ORCA RECOMMENDED CORRIDOR'}
+                    {analysisResult.is_cached
+                      ? (analysisResult.freshness?.isStale ? 'PREVIOUS ROUTE ANALYSIS (STALE)' : 'PREVIOUS ROUTE ANALYSIS (CACHED)')
+                      : (t('route_recommended') || 'ORCA RECOMMENDED CORRIDOR')}
                   </span>
                   <span className="px-2 py-0.5 bg-emerald-500/20 border border-emerald-400/30 rounded text-[10px] font-bold text-emerald-200">
                     {recommendedRoute.name}
                   </span>
+                  {analysisResult.is_cached && (
+                    <span className="px-2 py-0.5 bg-amber-500/30 border border-amber-400/50 rounded text-[9px] font-bold text-amber-200">
+                      {analysisResult.freshness?.label || 'Cached Analysis'}
+                    </span>
+                  )}
                 </div>
                 <div className="text-sm font-semibold text-gray-200 mt-0.5">
                   {analysisResult.recommendation_reason}
                 </div>
+                {analysisResult.is_cached && (
+                  <div className="text-[11px] text-amber-200/90 mt-1 flex items-center gap-1">
+                    <AlertTriangle size={11} className="text-amber-300 shrink-0" />
+                    <span>Live marine conditions along this transit corridor may have changed since recording. Reconnect to refresh.</span>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -1,5 +1,5 @@
-import { OpenMeteoWeatherResponse } from '@/types/openMeteo';
-import { FASTAPI_BASE_URL } from '@/config/api';
+import type { OpenMeteoWeatherResponse } from '../types/openMeteo';
+import { FASTAPI_BASE_URL } from '../config/api';
 
 const OPEN_METEO_WEATHER_BASE_URL = 'https://api.open-meteo.com/v1/forecast';
 

@@ -59,8 +59,14 @@ export default function OrcaIntelligence({ onReviewRoute }: OrcaIntelligenceProp
         <h3 className="text-[11px] font-bold text-navy-900 uppercase tracking-wider">
           {t('intel_title')}
         </h3>
-        <span className="text-[10px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-          Official INCOIS PFZ Advisory
+        <span
+          className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
+            pfzData?.is_cached
+              ? 'text-amber-800 bg-amber-50 border-amber-200'
+              : 'text-slate-700 bg-slate-100 border-slate-200'
+          }`}
+        >
+          {pfzData?.is_cached ? `CACHED INCOIS PFZ (${pfzData.freshness?.formattedTime || 'Saved'})` : 'Official INCOIS PFZ Advisory'}
         </span>
       </div>
 

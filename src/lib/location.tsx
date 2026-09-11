@@ -3,8 +3,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getLiveOrcaMarineData, mapToMarineConditions } from '@/services/orcaDataService';
 import { validateMarinePoint } from '@/services/marineService';
+import { getVerifiedSafetyAssessment } from '@/services/safetyService';
 import { OrcaLiveMarineData } from '@/types/openMeteo';
 import { MarineCondition, SafetyAssessment } from '@/types';
+import { cacheService } from '@/services/cacheService';
+import { connectivityService } from '@/services/connectivityService';
+import { formatTimestampIST } from '@/utils/freshness';
 
 export interface LocationState {
   id?: string;
@@ -123,10 +127,6 @@ export const COASTAL_LOCATIONS: LocationState[] = [
 
 export const DEFAULT_LOCATION: LocationState = COASTAL_LOCATIONS[0];
 
-/**
- * All locations now use fully dynamic, live data from Open-Meteo and INCOIS.
- * Retained for backwards-compatibility; always returns false.
- */
 export function isMumbaiDemoCoverage(_loc?: LocationState | null): boolean {
   return false;
 }
@@ -166,21 +166,6 @@ function createInitialSafetyAssessment(loc: LocationState): SafetyAssessment {
   };
 }
 
-function formatISTTimestamp(date: Date = new Date()): string {
-  try {
-    return date.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-      timeZone: 'Asia/Kolkata',
-    }) + ' IST';
-  } catch {
-    const hh = String(date.getHours()).padStart(2, '0');
-    const mm = String(date.getMinutes()).padStart(2, '0');
-    return `${hh}:${mm} IST`;
-  }
-}
-
 interface LocationContextType {
   selectedLocation: LocationState;
   setSelectedLocation: (loc: LocationState) => void;
@@ -190,7 +175,7 @@ interface LocationContextType {
   safetyAssessment: SafetyAssessment;
   isLoading: boolean;
   isLive: boolean;
-  liveSource: 'fastapi' | 'open-meteo' | 'mock-fallback';
+  liveSource: 'fastapi' | 'open-meteo' | 'cached' | 'unavailable' | 'mock-fallback';
   lastUpdated: string | null;
   locationNotice: string | null;
   clearLocationNotice: () => void;
@@ -208,7 +193,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   const [safetyAssessment, setSafetyAssessment] = useState<SafetyAssessment>(() => createInitialSafetyAssessment(DEFAULT_LOCATION));
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isLive, setIsLive] = useState<boolean>(false);
-  const [liveSource, setLiveSource] = useState<'fastapi' | 'open-meteo' | 'mock-fallback'>('fastapi');
+  const [liveSource, setLiveSource] = useState<'fastapi' | 'open-meteo' | 'cached' | 'unavailable' | 'mock-fallback'>('fastapi');
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [locationNotice, setLocationNotice] = useState<string | null>(null);
 
@@ -218,227 +203,61 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
   const loadLocationData = useCallback(async (loc: LocationState) => {
     setIsLoading(true);
-    setLiveData(null); // Clear previous location data immediately to prevent stale state
     clearLocationNotice();
 
-    console.log("[ORCA] Selected location:", loc);
-    console.log("[ORCA] Fetching coordinates:", loc.latitude, loc.longitude);
-
     try {
-      const data = await getLiveOrcaMarineData(loc.latitude, loc.longitude, loc.name);
+      // Save active location selection to verified cache
+      await cacheService.set('location', 'active_location', loc, 'User Selection');
 
-      if (data && data.isLive) {
-        setLiveData(data);
-        setMarineConditions(mapToMarineConditions(data));
-        setIsLive(true);
-        setLiveSource(data.source);
-        setLastUpdated(formatISTTimestamp(new Date()));
+      const [marineRes, safetyRes] = await Promise.all([
+        getLiveOrcaMarineData(loc.latitude, loc.longitude, loc.name),
+        getVerifiedSafetyAssessment(loc.latitude, loc.longitude, loc.name),
+      ]);
 
-        // Update dynamic safety assessment factors and verdict for the selected location
-        const c = data.current;
-        const waveH = c.waveHeightMeters ?? 1.1;
-        const windSpd = c.windSpeedKnots ?? 12.0;
-        const precip = c.precipitation ?? 0.0;
+      setLiveData(marineRes);
+      setMarineConditions(mapToMarineConditions(marineRes));
+      setSafetyAssessment(safetyRes);
 
-        const isWaveElevated = waveH > 1.8;
-        const isWindElevated = windSpd > 15.0;
-        const isRainElevated = precip > 1.0;
+      const isRealLive = marineRes.isLive === true;
+      const isCached = marineRes.is_cached === true;
 
-        const fastRisk = data.fastapiSafety?.risk_level?.toLowerCase();
-        const riskLevel: 'low' | 'moderate' | 'high' = 
-          (fastRisk === 'high' || fastRisk === 'caution' || fastRisk === 'low')
-            ? (fastRisk === 'caution' ? 'moderate' : fastRisk as 'low' | 'high')
-            : ((waveH > 2.5 || windSpd > 22 || precip > 5) ? 'high' :
-               (isWaveElevated || isWindElevated || isRainElevated) ? 'moderate' : 'low');
+      setIsLive(isRealLive);
+      setLiveSource(marineRes.source as any);
 
-        const verdictTitle = data.fastapiSafety?.status
-          ? `VERDICT: ${data.fastapiSafety.status} (${loc.name.toUpperCase()})`
-          : riskLevel === 'low' 
-          ? `VERDICT: CONDITIONS APPEAR SUITABLE (${loc.name.toUpperCase()})` 
-          : riskLevel === 'moderate'
-          ? `VERDICT: CAUTION ADVISED FOR ${loc.name.toUpperCase()}`
-          : `VERDICT: HIGH RISK AT ${loc.name.toUpperCase()}`;
-
-        const dynamicReasoning = [
-          `Live wave swell at ${loc.name} is ${waveH.toFixed(1)}m (${waveH < 1.8 ? 'within safe operational threshold' : waveH < 2.5 ? 'moderate swell observed' : 'rough seas detected'}).`,
-          `Surface wind speed is ${windSpd.toFixed(1)} kts ${c.windDirectionCompass} with gusts to ${c.windGustsKnots.toFixed(0)} kts.`,
-          `Precipitation telemetry is ${precip.toFixed(1)} mm with ${c.humidity}% relative humidity; no adverse convective cells detected.`,
-        ];
-
-        const computedRiskScore = riskLevel === 'high' ? 78 : riskLevel === 'moderate' ? 48 : 18;
-
-        setSafetyAssessment((prev) => ({
-          ...prev,
-          riskLevel,
-          riskScore: computedRiskScore,
-          area: loc.name,
-          verdictTitle,
-          description: data.fastapiSafety?.recommendation || (
-            riskLevel === 'low'
-              ? `Environmental telemetry at ${loc.name} indicates wave heights at ${waveH.toFixed(1)}m and wind speeds at ${windSpd.toFixed(1)} kts within operational limits. Mechanized craft (>9m) may proceed with standard vigilance.`
-              : `Elevated sea conditions observed at ${loc.name} with waves at ${waveH.toFixed(1)}m and winds at ${windSpd.toFixed(1)} kts. Heightened vigilance required.`
-          ),
-          reasoning: dynamicReasoning,
-          factors: prev.factors.map((f) => {
-            if (f.id === 'waves') {
-              return {
-                ...f,
-                value: `${waveH.toFixed(1)} m — ${waveH < 1.8 ? 'Acceptable' : waveH < 2.5 ? 'Moderate Swell' : 'Rough Seas'}`,
-                status: `Live at ${loc.name} (Swell ${c.swellWaveHeightMeters.toFixed(1)}m)`,
-                statusColor: waveH < 1.8 ? 'green' : waveH < 2.5 ? 'amber' : 'red',
-              };
-            }
-            if (f.id === 'wind') {
-              return {
-                ...f,
-                value: `${windSpd.toFixed(1)} kt ${c.windDirectionCompass} — ${windSpd < 15 ? 'Gentle Breeze' : windSpd < 22 ? 'Caution' : 'High Wind'}`,
-                status: `Live at ${loc.name} (Gusts ${c.windGustsKnots.toFixed(0)} kt)`,
-                statusColor: windSpd < 15 ? 'green' : windSpd < 22 ? 'amber' : 'red',
-              };
-            }
-            if (f.id === 'rain') {
-              return {
-                ...f,
-                value: `${precip.toFixed(1)} mm — ${precip < 1 ? 'Clear / Dry' : precip < 5 ? 'Showers' : 'Heavy Rain'}`,
-                status: `Humidity ${c.humidity}% at ${loc.name}`,
-                statusColor: precip < 1 ? 'green' : precip < 5 ? 'amber' : 'red',
-              };
-            }
-            if (f.id === 'lightning') {
-              return {
-                ...f,
-                value: 'Clear',
-                status: `No alert at ${loc.name}`,
-                statusColor: 'green',
-              };
-            }
-            if (f.id === 'cyclone') {
-              return {
-                ...f,
-                value: 'Clear',
-                status: `No depression at ${loc.name}`,
-                statusColor: 'green',
-              };
-            }
-            if (f.id === 'geofence') {
-              return {
-                ...f,
-                value: 'Clear',
-                status: `Safe boundary buffer at ${loc.name}`,
-                statusColor: 'green',
-              };
-            }
-            return f;
-          }),
-        }));
+      if (isRealLive) {
+        setLastUpdated(formatTimestampIST(Date.now()));
+      } else if (isCached && marineRes.cache_timestamp) {
+        setLastUpdated(formatTimestampIST(marineRes.cache_timestamp));
+        setLocationNotice(`Showing verified cached intelligence from ${formatTimestampIST(marineRes.cache_timestamp)}.`);
       } else {
-        // Live data not available — label unavailable state for the current location
-        setIsLive(false);
-        setLiveSource('mock-fallback');
-        setLastUpdated(formatISTTimestamp(new Date()) + ' (Offline)');
-        setLocationNotice(`Marine data temporarily unavailable for ${loc.name}.`);
-        const fallbackObj: OrcaLiveMarineData = {
-          source: 'mock-fallback',
-          isLive: false,
-          fetchedAt: new Date().toISOString(),
-          coordinates: { lat: loc.latitude, lon: loc.longitude, locationName: loc.name },
-          current: {
-            temperature: 0,
-            humidity: 0,
-            precipitation: 0,
-            windSpeedKnots: 0,
-            windDirectionDeg: 0,
-            windDirectionCompass: 'N/A',
-            windGustsKnots: 0,
-            waveHeightMeters: 0,
-            waveDirectionDeg: 0,
-            wavePeriodSeconds: 0,
-            swellWaveHeightMeters: 0,
-            swellWavePeriodSeconds: 0,
-            seaSurfaceTemperature: 0,
-          },
-          tomorrowMorning: {
-            window: 'Tomorrow 05:00–11:00 IST',
-            avgWaveHeight: 0,
-            avgWindSpeed: 0,
-            precipitationTotal: 0,
-            isSafe: false,
-            reason: `Marine data temporarily unavailable for ${loc.name}.`,
-          },
-        };
-        setLiveData(fallbackObj);
-        setMarineConditions(mapToMarineConditions(fallbackObj));
-        setSafetyAssessment((prev) => ({
-          ...prev,
-          area: loc.name,
-          verdictTitle: `VERDICT: TELEMETRY UNAVAILABLE (${loc.name.toUpperCase()})`,
-          description: `Marine data temporarily unavailable for ${loc.name}. Please verify official coastal marine advisories.`,
-          factors: prev.factors.map((f) => ({
-            ...f,
-            value: '--',
-            status: `Unavailable at ${loc.name}`,
-            statusColor: 'amber',
-          })),
-        }));
+        setLastUpdated('Unavailable');
+        setLocationNotice(`Live marine telemetry currently unavailable for ${loc.name}.`);
       }
     } catch (err) {
-      console.warn(`Failed to fetch environmental telemetry for ${loc.name}:`, err);
+      console.warn(`[LocationProvider] Error fetching data for ${loc.name}:`, err);
       setIsLive(false);
-      setLiveSource('mock-fallback');
-      setLastUpdated(formatISTTimestamp(new Date()) + ' (Offline)');
-      setLocationNotice(`Marine data temporarily unavailable for ${loc.name}.`);
-      const fallbackObj: OrcaLiveMarineData = {
-        source: 'mock-fallback',
-        isLive: false,
-        fetchedAt: new Date().toISOString(),
-        coordinates: { lat: loc.latitude, lon: loc.longitude, locationName: loc.name },
-        current: {
-          temperature: 0,
-          humidity: 0,
-          precipitation: 0,
-          windSpeedKnots: 0,
-          windDirectionDeg: 0,
-          windDirectionCompass: 'N/A',
-          windGustsKnots: 0,
-          waveHeightMeters: 0,
-          waveDirectionDeg: 0,
-          wavePeriodSeconds: 0,
-          swellWaveHeightMeters: 0,
-          swellWavePeriodSeconds: 0,
-          seaSurfaceTemperature: 0,
-        },
-        tomorrowMorning: {
-          window: 'Tomorrow 05:00–11:00 IST',
-          avgWaveHeight: 0,
-          avgWindSpeed: 0,
-          precipitationTotal: 0,
-          isSafe: false,
-          reason: `Marine data temporarily unavailable for ${loc.name}.`,
-        },
-      };
-      setLiveData(fallbackObj);
-      setMarineConditions(mapToMarineConditions(fallbackObj));
-      setSafetyAssessment((prev) => ({
-        ...prev,
-        area: loc.name,
-        verdictTitle: `VERDICT: TELEMETRY UNAVAILABLE (${loc.name.toUpperCase()})`,
-        description: `Marine data temporarily unavailable for ${loc.name}. Please verify official coastal marine advisories.`,
-        factors: prev.factors.map((f) => ({
-          ...f,
-          value: '--',
-          status: `Unavailable at ${loc.name}`,
-          statusColor: 'amber',
-        })),
-      }));
+      setLiveSource('unavailable');
+      setLastUpdated('Unavailable');
+      setLocationNotice(`Marine telemetry unavailable for ${loc.name}.`);
     } finally {
       setIsLoading(false);
     }
   }, [clearLocationNotice]);
 
-  // Initial load
+  // Initial load & automatic recovery listener
   useEffect(() => {
     loadLocationData(DEFAULT_LOCATION);
-  }, [loadLocationData]);
+
+    // Register auto-recovery listener when connection is restored
+    const unsubscribeRecovery = connectivityService.onRecovery(async () => {
+      console.info('[LocationProvider] Network restored. Syncing live telemetry for', selectedLocation.name);
+      await loadLocationData(selectedLocation);
+    });
+
+    return () => {
+      unsubscribeRecovery();
+    };
+  }, [loadLocationData, selectedLocation]);
 
   const setSelectedLocation = useCallback((loc: LocationState) => {
     setSelectedLocationState(loc);
@@ -450,8 +269,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   }, [loadLocationData, selectedLocation]);
 
   /**
-   * Handle user clicking on the map:
-   * Validates whether clicked point is marine. If on land, shows notice and rejects.
+   * Handle user clicking on the map
    */
   const selectPointFromMap = useCallback(async (lat: number, lon: number): Promise<boolean> => {
     setIsLoading(true);

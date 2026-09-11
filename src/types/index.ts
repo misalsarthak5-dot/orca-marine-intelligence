@@ -18,6 +18,23 @@ export type MapLayerType =
   | 'route'
   | 'hazards';
 
+export type DataFreshnessStatus = 'LIVE' | 'CACHED' | 'STALE' | 'UNAVAILABLE';
+
+export type ConnectivityStatus = 'ONLINE' | 'LIMITED' | 'OFFLINE';
+
+export interface FreshnessEvaluation {
+  status: DataFreshnessStatus;
+  timestamp: number | null;
+  formattedTime: string;
+  ageText: string;
+  isStale: boolean;
+  isCached: boolean;
+  isLive: boolean;
+  isUnavailable: boolean;
+  label: string;
+  warningNotice?: string;
+}
+
 // ── Marine Conditions ───────────────────────────────────────
 
 export interface MarineCondition {
@@ -32,6 +49,7 @@ export interface MarineCondition {
   icon: string;
   detail?: string;
   source?: string;
+  freshness?: FreshnessEvaluation;
 }
 
 // ── Safety Assessment ───────────────────────────────────────
@@ -58,6 +76,9 @@ export interface SafetyAssessment {
   reasoning: string[];
   recommendation: string;
   disclaimer: string;
+  is_cached?: boolean;
+  cache_timestamp?: number;
+  freshness?: FreshnessEvaluation;
 }
 
 // ── PFZ Zones ───────────────────────────────────────────────
@@ -138,6 +159,9 @@ export interface HazardAssessment {
     timestamp?: string;
   };
   disclaimer: string;
+  is_cached?: boolean;
+  cache_timestamp?: number;
+  freshness?: FreshnessEvaluation;
 }
 
 // ── Route Recommendations ───────────────────────────────────
@@ -225,6 +249,9 @@ export interface RouteAnalysisResponse {
   recommendation_reason: string;
   data_sources: string[];
   disclaimer: string;
+  is_cached?: boolean;
+  cache_timestamp?: number;
+  freshness?: FreshnessEvaluation;
 }
 
 export interface RouteRecommendation {

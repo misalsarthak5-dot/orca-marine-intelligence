@@ -1,8 +1,11 @@
 import { fetchWeatherForecast, fetchFastAPIWeather } from './weatherService';
 import { fetchMarineConditions, fetchFastAPIMarine } from './marineService';
 import { fetchFastAPISafety } from './safetyService';
-import { MarineCondition } from '@/types';
-import { OrcaLiveMarineData } from '@/types/openMeteo';
+import type { MarineCondition } from '../types/index';
+import type { OrcaLiveMarineData } from '../types/openMeteo';
+import { cacheService, getLocationKey } from './cacheService';
+import { connectivityService } from './connectivityService';
+import { evaluateFreshness, type FreshnessEvaluation } from '../utils/freshness';
 
 /**
  * Convert degree angle (0-360) to 8-point compass bearing
@@ -13,29 +16,55 @@ export function degreesToCompass(deg: number): string {
   return directions[idx];
 }
 
+/** Helper with timeout to prevent hanging requests */
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number = 5000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`API request timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    promise
+      .then((res) => {
+        clearTimeout(timer);
+        resolve(res);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
+}
+
 /**
  * Fetch and assemble real-time weather and marine conditions.
  * Architecture:
- * 1. Primary: ORCA FastAPI Backend (http://localhost:8000)
- * 2. Secondary: Direct Open-Meteo Public API
- * 3. Tertiary: Local SIH demo mock data baseline
+ * 1. Live API (FastAPI backend / Direct Open-Meteo) -> on success, updates verified cache
+ * 2. If API fails/times out -> retrieve verified local cache (IndexedDB)
+ * 3. If no cache -> return explicit UNAVAILABLE state (never fabricate fake values)
  */
 export async function getLiveOrcaMarineData(
   lat: number,
   lon: number,
-  locationName: string = 'Coast'
-): Promise<OrcaLiveMarineData> {
+  locationName: string = 'Coast',
+  options?: { skipLive?: boolean; thresholdMinutes?: number }
+): Promise<OrcaLiveMarineData & { is_cached?: boolean; cache_timestamp?: number; freshness?: FreshnessEvaluation }> {
   if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) {
     throw new Error(`Invalid coordinates supplied to getLiveOrcaMarineData: lat=${lat}, lon=${lon}`);
   }
 
-  // ── Tier 1: Try ORCA FastAPI Backend ────────────────────────
-  try {
-    const [fastWeather, fastMarine, fastSafety] = await Promise.all([
-      fetchFastAPIWeather(lat, lon),
-      fetchFastAPIMarine(lat, lon),
-      fetchFastAPISafety(lat, lon),
-    ]);
+  const locationKey = getLocationKey(lat, lon);
+
+  if (!options?.skipLive) {
+    // ── Tier 1: Live API Attempt (FastAPI Backend) ──────────────
+    try {
+      const [fastWeather, fastMarine, fastSafety] = await withTimeout(
+        Promise.all([
+          fetchFastAPIWeather(lat, lon),
+          fetchFastAPIMarine(lat, lon),
+          fetchFastAPISafety(lat, lon),
+        ]),
+        5000
+      );
 
     const wc = fastWeather.current || {};
     const mc = fastMarine.current || {};
@@ -77,11 +106,13 @@ export async function getLiveOrcaMarineData(
     }
 
     const isTomorrowSafe = tomorrowMorningWave < 2.0 && tomorrowMorningWind < 18.0 && tomorrowMorningRain < 10.0;
+    const nowMs = Date.now();
 
-    return {
+    const liveData: OrcaLiveMarineData & { is_cached?: boolean; cache_timestamp?: number; freshness?: FreshnessEvaluation } = {
       source: 'fastapi',
       isLive: true,
-      fetchedAt: new Date().toISOString(),
+      is_cached: false,
+      fetchedAt: new Date(nowMs).toISOString(),
       fastapiSafety: fastSafety,
       coordinates: {
         lat,
@@ -109,26 +140,37 @@ export async function getLiveOrcaMarineData(
         avgWindSpeed: parseFloat(tomorrowMorningWind.toFixed(1)),
         precipitationTotal: parseFloat(tomorrowMorningRain.toFixed(1)),
         isSafe: isTomorrowSafe,
-        reason: fastSafety.recommendation || (isTomorrowSafe
+        reason: fastSafety?.recommendation || (isTomorrowSafe
           ? `Waves avg ${tomorrowMorningWave.toFixed(1)}m, wind ${tomorrowMorningWind.toFixed(1)} kts within safe thresholds.`
           : `Marginal conditions: swell or wind gusts approaching advisory limits.`),
       },
+      freshness: evaluateFreshness(true, nowMs),
     };
-  } catch (fastApiErr) {
-    console.info('[ORCA Data Service] FastAPI backend unreachable or pending, attempting direct Open-Meteo fallback:', fastApiErr);
-  }
 
-  // ── Tier 2: Direct Open-Meteo API ───────────────────────────
+    // Save to verified local cache & update connectivity
+    await cacheService.set('marine_data', locationKey, liveData, 'FastAPI / Open-Meteo');
+    connectivityService.recordSuccess('marine_telemetry');
+
+    return liveData;
+  } catch (fastApiErr) {
+    console.info('[ORCA Data Service] FastAPI backend unreachable or timed out, trying direct Open-Meteo:', fastApiErr);
+  }
+  } // end if (!options?.skipLive)
+
+  if (!options?.skipLive) {
+  // ── Tier 2: Direct Open-Meteo API Attempt ───────────────────
   try {
-    const [weatherRes, marineRes] = await Promise.all([
-      fetchWeatherForecast(lat, lon),
-      fetchMarineConditions(lat, lon),
-    ]);
+    const [weatherRes, marineRes] = await withTimeout(
+      Promise.all([
+        fetchWeatherForecast(lat, lon),
+        fetchMarineConditions(lat, lon),
+      ]),
+      5000
+    );
 
     const currentWeather = weatherRes.current;
     const currentMarine = marineRes.current;
 
-    // Analyze tomorrow morning forecast
     let tomorrowMorningWave = currentMarine.wave_height ?? 1.2;
     let tomorrowMorningWind = currentWeather.wind_speed_10m ?? 12;
     let tomorrowMorningRain = 0;
@@ -162,11 +204,13 @@ export async function getLiveOrcaMarineData(
     }
 
     const isTomorrowSafe = tomorrowMorningWave < 2.0 && tomorrowMorningWind < 18 && tomorrowMorningRain < 10;
+    const nowMs = Date.now();
 
-    return {
+    const liveData: OrcaLiveMarineData & { is_cached?: boolean; cache_timestamp?: number; freshness?: FreshnessEvaluation } = {
       source: 'open-meteo',
       isLive: true,
-      fetchedAt: new Date().toISOString(),
+      is_cached: false,
+      fetchedAt: new Date(nowMs).toISOString(),
       coordinates: {
         lat,
         lon,
@@ -197,55 +241,119 @@ export async function getLiveOrcaMarineData(
           ? `Waves avg ${tomorrowMorningWave.toFixed(1)}m, wind ${tomorrowMorningWind.toFixed(1)} kts within safe thresholds.`
           : `Marginal conditions: swell or wind gusts approaching advisory limits.`,
       },
+      freshness: evaluateFreshness(true, nowMs),
     };
+
+    // Save to verified local cache & update connectivity
+    await cacheService.set('marine_data', locationKey, liveData, 'Open-Meteo Marine API');
+    connectivityService.recordSuccess('marine_telemetry');
+
+    return liveData;
   } catch (error) {
-    // ── Tier 3: Clearly Flagged Fallback Demo State ─────────────
-    console.warn(`[ORCA Data Service] Direct live fetch failed for ${locationName} (${lat}, ${lon}):`, error);
-    return {
-      source: 'mock-fallback',
+    console.warn(`[ORCA Data Service] Live fetch failed for ${locationName} (${lat}, ${lon}):`, error);
+    connectivityService.recordFailure('marine_telemetry', error);
+  }
+  } // end if (!options?.skipLive)
+
+  // ── Tier 3: Verified Local Cache Fallback ───────────────────
+  let cachedRecord = await cacheService.get<any>('marine_data', locationKey);
+  if (!cachedRecord) {
+    cachedRecord = await cacheService.get<any>('ocean_data', locationKey);
+  }
+
+  if (cachedRecord && cachedRecord.data) {
+    const cachedData = cachedRecord.data;
+    const freshness = evaluateFreshness({
       isLive: false,
-      fetchedAt: new Date().toISOString(),
-      coordinates: {
-        lat,
-        lon,
-        locationName: `${locationName} (Offline Telemetry)`,
-      },
-      current: {
-        temperature: 0,
-        humidity: 0,
-        precipitation: 0,
-        windSpeedKnots: 0,
-        windDirectionDeg: 0,
-        windDirectionCompass: 'N/A',
-        windGustsKnots: 0,
-        waveHeightMeters: 0,
-        waveDirectionDeg: 0,
-        wavePeriodSeconds: 0,
-        swellWaveHeightMeters: 0,
-        swellWavePeriodSeconds: 0,
-        seaSurfaceTemperature: 0,
-      },
-      tomorrowMorning: {
-        window: 'Tomorrow 05:00–11:00 IST',
-        avgWaveHeight: 0,
-        avgWindSpeed: 0,
-        precipitationTotal: 0,
-        isSafe: false,
-        reason: `Live telemetry temporarily unavailable for ${locationName}.`,
-      },
+      dataTimestamp: cachedRecord.timestamp,
+      thresholdMinutes: options?.thresholdMinutes,
+    });
+
+    return {
+      ...cachedData,
+      source: 'cached',
+      isLive: false,
+      is_cached: true,
+      cache_timestamp: cachedRecord.timestamp,
+      freshness,
     };
   }
+
+  // ── Tier 4: Honest UNAVAILABLE State (Zero Data Fabrication) ─
+  const unavailableFreshness = evaluateFreshness(false, null);
+  return {
+    source: 'unavailable',
+    isLive: false,
+    is_cached: false,
+    fetchedAt: new Date().toISOString(),
+    coordinates: {
+      lat,
+      lon,
+      locationName: `${locationName} (Data Unavailable)`,
+    },
+    current: {
+      temperature: 0,
+      humidity: 0,
+      precipitation: 0,
+      windSpeedKnots: 0,
+      windDirectionDeg: 0,
+      windDirectionCompass: 'N/A',
+      windGustsKnots: 0,
+      waveHeightMeters: 0,
+      waveDirectionDeg: 0,
+      wavePeriodSeconds: 0,
+      swellWaveHeightMeters: 0,
+      swellWavePeriodSeconds: 0,
+      seaSurfaceTemperature: 0,
+    },
+    tomorrowMorning: {
+      window: 'Tomorrow',
+      avgWaveHeight: 0,
+      avgWindSpeed: 0,
+      precipitationTotal: 0,
+      isSafe: false,
+      reason: `Live marine telemetry currently unavailable for ${locationName}.`,
+    },
+    freshness: unavailableFreshness,
+  };
 }
 
 /**
- * Transform live Open-Meteo / FastAPI data into the standard ORCA MarineCondition[] array
+  * Retrieve verified ocean data with live-first caching and fallback.
+  */
+export async function getVerifiedOceanData(
+  lat: number,
+  lon: number,
+  options?: { skipLive?: boolean; thresholdMinutes?: number; locationName?: string }
+): Promise<{ data: any; freshness: FreshnessEvaluation }> {
+  const locName = options?.locationName || 'Coast';
+  const res = await getLiveOrcaMarineData(lat, lon, locName, options);
+  if (res.source === 'unavailable') {
+    return {
+      data: null,
+      freshness: res.freshness || evaluateFreshness(false, null),
+    };
+  }
+  return {
+    data: res,
+    freshness: res.freshness || evaluateFreshness(res.isLive, res.cache_timestamp || Date.now()),
+  };
+}
+
+/**
+ * Transform live/cached Open-Meteo / FastAPI data into the standard ORCA MarineCondition[] array
  */
-export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondition[] {
-  const isReal = (liveData.source === 'fastapi' || liveData.source === 'open-meteo') && liveData.isLive;
+export function mapToMarineConditions(
+  liveData: OrcaLiveMarineData & { is_cached?: boolean; cache_timestamp?: number; freshness?: FreshnessEvaluation }
+): MarineCondition[] {
+  const isAvailable = liveData.source !== 'unavailable';
+  const isRealLive = liveData.isLive === true;
+  const isCached = liveData.is_cached === true;
   const c = liveData.current;
   const locName = liveData.coordinates?.locationName || 'Coast';
+  const freshness = liveData.freshness;
 
-  if (!isReal) {
+  if (!isAvailable) {
     return [
       {
         id: 'sst',
@@ -256,7 +364,7 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
         statusColor: 'gray',
         icon: 'thermometer',
         detail: `Marine data temporarily unavailable for ${locName}`,
-        source: undefined,
+        freshness,
       },
       {
         id: 'chlorophyll',
@@ -266,8 +374,8 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
         status: 'Pending',
         statusColor: 'gray',
         icon: 'leaf',
-        detail: 'Satellite feed pending',
-        source: undefined,
+        detail: 'Satellite feed pending (NASA / INCOIS)',
+        freshness,
       },
       {
         id: 'wind',
@@ -278,7 +386,7 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
         statusColor: 'gray',
         icon: 'wind',
         detail: `Marine data temporarily unavailable for ${locName}`,
-        source: undefined,
+        freshness,
       },
       {
         id: 'waves',
@@ -289,7 +397,7 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
         statusColor: 'gray',
         icon: 'waves',
         detail: `Marine data temporarily unavailable for ${locName}`,
-        source: undefined,
+        freshness,
       },
       {
         id: 'precipitation',
@@ -300,7 +408,7 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
         statusColor: 'gray',
         icon: 'cloudRain',
         detail: `Marine data temporarily unavailable for ${locName}`,
-        source: undefined,
+        freshness,
       },
       {
         id: 'tide',
@@ -311,7 +419,7 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
         statusColor: 'gray',
         icon: 'arrowUpDown',
         detail: 'Hydrodynamic Table',
-        source: undefined,
+        freshness,
       },
     ];
   }
@@ -372,7 +480,8 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
     sstColor = 'blue';
   }
 
-  const liveSourceLabel = liveData.source === 'fastapi' ? 'FastAPI / Open-Meteo' : 'Open-Meteo Marine';
+  const deltaText = isRealLive ? 'Live Telemetry' : isCached ? `Cached (${freshness?.formattedTime || 'Saved'})` : 'Baseline';
+  const detailSuffix = isCached ? ` [Cached · ${freshness?.ageText || ''}]` : '';
 
   return [
     {
@@ -380,13 +489,14 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
       label: 'metric_sst',
       value: c.seaSurfaceTemperature.toFixed(1),
       unit: '°C',
-      delta: isReal ? 'Live SST' : '0.2°C',
+      delta: deltaText,
       deltaDirection: 'stable',
       status: sstStatus,
       statusColor: sstColor,
       icon: 'thermometer',
-      detail: isReal ? liveSourceLabel : 'Suitable range for pelagic activity',
-      source: isReal ? 'Open-Meteo' : undefined,
+      detail: (isRealLive ? 'Open-Meteo Marine' : 'Verified cache') + detailSuffix,
+      source: isRealLive ? 'Open-Meteo' : 'Cached',
+      freshness,
     },
     {
       id: 'chlorophyll',
@@ -397,7 +507,7 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
       statusColor: 'gray',
       icon: 'leaf',
       detail: 'Satellite feed pending (NASA / INCOIS)',
-      source: undefined,
+      freshness,
     },
     {
       id: 'wind',
@@ -407,8 +517,9 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
       status: windStatus,
       statusColor: windColor,
       icon: 'wind',
-      detail: `${c.windDirectionCompass} • Gusts ${c.windGustsKnots.toFixed(0)} kt`,
-      source: isReal ? 'Open-Meteo' : undefined,
+      detail: `${c.windDirectionCompass} • Gusts ${c.windGustsKnots.toFixed(0)} kt` + detailSuffix,
+      source: isRealLive ? 'Open-Meteo' : 'Cached',
+      freshness,
     },
     {
       id: 'waves',
@@ -418,8 +529,9 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
       status: waveStatus,
       statusColor: waveColor,
       icon: 'waves',
-      detail: `Period ${c.wavePeriodSeconds.toFixed(1)}s (Swell ${c.swellWaveHeightMeters.toFixed(1)}m)`,
-      source: isReal ? 'Open-Meteo' : undefined,
+      detail: `Period ${c.wavePeriodSeconds.toFixed(1)}s (Swell ${c.swellWaveHeightMeters.toFixed(1)}m)` + detailSuffix,
+      source: isRealLive ? 'Open-Meteo' : 'Cached',
+      freshness,
     },
     {
       id: 'precipitation',
@@ -429,8 +541,9 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
       status: rainStatus,
       statusColor: rainColor,
       icon: 'cloudRain',
-      detail: `Humidity ${c.humidity}%`,
-      source: isReal ? 'Open-Meteo' : undefined,
+      detail: `Humidity ${c.humidity}%` + detailSuffix,
+      source: isRealLive ? 'Open-Meteo' : 'Cached',
+      freshness,
     },
     {
       id: 'tide',
@@ -441,7 +554,7 @@ export function mapToMarineConditions(liveData: OrcaLiveMarineData): MarineCondi
       statusColor: 'blue',
       icon: 'arrowUpDown',
       detail: 'Hydrodynamic Table',
-      source: undefined,
+      freshness,
     },
   ];
 }

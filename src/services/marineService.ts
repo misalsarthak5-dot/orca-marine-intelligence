@@ -1,5 +1,5 @@
-import { OpenMeteoMarineResponse } from '@/types/openMeteo';
-import { FASTAPI_BASE_URL } from '@/config/api';
+import type { OpenMeteoMarineResponse } from '../types/openMeteo';
+import { FASTAPI_BASE_URL } from '../config/api';
 
 const OPEN_METEO_MARINE_BASE_URL = 'https://marine-api.open-meteo.com/v1/marine';
 
