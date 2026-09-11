@@ -7,12 +7,9 @@ import {
   LayoutDashboard,
   Map,
   MessageCircle,
-  Ship,
   AlertTriangle,
   Brain,
-  History,
   Settings,
-  HelpCircle,
   Waves,
   Wifi,
 } from 'lucide-react';
@@ -30,15 +27,12 @@ const mainNavItems: NavItem[] = [
   { labelKey: 'nav_dashboard', href: '/dashboard', icon: <LayoutDashboard size={18} /> },
   { labelKey: 'nav_liveMap', href: '/live-map', icon: <Map size={18} /> },
   { labelKey: 'nav_askOrca', href: '/ask', icon: <MessageCircle size={18} /> },
-  { labelKey: 'nav_fleet', href: '/fleet', icon: <Ship size={18} /> },
-  { labelKey: 'nav_alerts', href: '/alerts', icon: <AlertTriangle size={18} />, badge: 2 },
+  { labelKey: 'nav_alerts', href: '/alerts', icon: <AlertTriangle size={18} /> },
   { labelKey: 'nav_intelligence', href: '/intelligence', icon: <Brain size={18} /> },
-  { labelKey: 'nav_history', href: '/history', icon: <History size={18} /> },
 ];
 
 const bottomNavItems: NavItem[] = [
   { labelKey: 'nav_settings', href: '/settings', icon: <Settings size={18} /> },
-  { labelKey: 'nav_support', href: '/support', icon: <HelpCircle size={18} /> },
 ];
 
 export default function Sidebar() {

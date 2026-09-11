@@ -232,7 +232,7 @@ export default function AskOrca({ onLayerActivate }: AskOrcaProps) {
                         <span>SST: {msg.pfz.sst}</span>
                         <span>Chlorophyll: {msg.pfz.chlorophyll}</span>
                         <span>Risk: {msg.pfz.marineRisk}</span>
-                        <span>Dataset: Demo / Satellite Dataset</span>
+                        <span>Dataset: INCOIS / Satellite Feeds</span>
                       </div>
                     </div>
                   )}

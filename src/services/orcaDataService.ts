@@ -208,7 +208,7 @@ export async function getLiveOrcaMarineData(
       coordinates: {
         lat,
         lon,
-        locationName: `${locationName} (Fallback Demo)`,
+        locationName: `${locationName} (Offline Telemetry)`,
       },
       current: {
         temperature: 0,
@@ -231,7 +231,7 @@ export async function getLiveOrcaMarineData(
         avgWindSpeed: 0,
         precipitationTotal: 0,
         isSafe: false,
-        reason: `Live telemetry unavailable for ${locationName}. Baseline demo state active.`,
+        reason: `Live telemetry temporarily unavailable for ${locationName}.`,
       },
     };
   }

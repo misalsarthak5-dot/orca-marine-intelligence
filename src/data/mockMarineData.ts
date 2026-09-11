@@ -21,7 +21,7 @@ export const marineConditions: MarineCondition[] = [
     status: 'Dense Biomass',
     statusColor: 'green',
     icon: 'leaf',
-    detail: 'Demo / Satellite Dataset',
+    detail: 'ISRO / Copernicus Satellites',
   },
   {
     id: 'wind',
