@@ -435,11 +435,12 @@ export default function LeafletMap({
     });
 
     tileLayer.on('tileerror', () => {
-      setTileError(true);
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setTileError(true);
+      }
     });
 
     tileLayer.on('load', () => {
-      // If tiles load successfully, reset error
       setTileError(false);
     });
 
@@ -465,8 +466,17 @@ export default function LeafletMap({
 
     mapRef.current = map;
 
-    // Ensure tiles render correctly after mount
-    setTimeout(() => map.invalidateSize(), 200);
+    // Ensure tiles render correctly immediately and on any container resize
+    setTimeout(() => map.invalidateSize(), 150);
+
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+    });
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
 
     if (onMapReady) {
       onMapReady({
@@ -504,6 +514,7 @@ export default function LeafletMap({
     window.addEventListener('orca:fit-route-bounds', handleFitBoundsEvent);
 
     return () => {
+      resizeObserver.disconnect();
       window.removeEventListener('orca:fit-route-bounds', handleFitBoundsEvent);
       map.remove();
       mapRef.current = null;
@@ -926,10 +937,10 @@ export default function LeafletMap({
   }, [routes, recommendedRouteId, selectedRouteId, destination, activeLayers, selectedLocation, onSelectRoute]);
 
   return (
-    <div className="relative w-full h-full">
+    <div className="absolute inset-0 overflow-hidden">
       <div
         ref={containerRef}
-        className="absolute inset-0"
+        className="w-full h-full"
         style={{ zIndex: 1 }}
       />
       {tileError && (
