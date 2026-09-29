@@ -230,3 +230,11 @@ class OrcaResponse(BaseModel):
         default=None,
         description="Collaborative multi-agent reasoning result (Phase 5)"
     )
+    citations: List[Any] = Field(
+        default_factory=list,
+        description="Authoritative reference citations (Phase 6)"
+    )
+    evidence_context: Optional[Any] = Field(
+        default=None,
+        description="Contextual RAG evidence container (Phase 6)"
+    )

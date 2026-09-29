@@ -104,6 +104,7 @@ class ReasoningContext(BaseModel):
     evidence: List[Evidence] = Field(default_factory=list, description="Grounded provenance records")
     plan: Optional[ExecutionPlan] = Field(default=None, description="Execution plan from Phase 4")
     timestamp: Optional[str] = Field(default=None, description="Temporal window")
+    evidence_context: Optional[Any] = Field(default=None, description="Contextual RAG evidence (Phase 6)")
 
 
 class ReasoningResult(BaseModel):
@@ -148,6 +149,10 @@ class ReasoningResult(BaseModel):
     reasoning_graph: Optional[Dict[str, Any]] = Field(
         default=None,
         description="Structured representation of cross-agent reasoning relationships"
+    )
+    evidence_context: Optional[Any] = Field(
+        default=None,
+        description="Contextual RAG evidence and citations (Phase 6)"
     )
     created_at: str = Field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat(),

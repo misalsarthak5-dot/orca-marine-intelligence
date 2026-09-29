@@ -370,27 +370,34 @@ async def ask_orca(req: AskRequest):
         )
 
 # ==============================================================================
-# Phase 4 — Intelligent Planner & Orchestration Pipeline
+# Phase 4, 5 & 6 — Intelligent Planner, Orchestration, Reasoning & Evidence Pipeline
 # ==============================================================================
 from orchestration.schemas import PlannerRequest, OrcaResponse
 from orchestration.orchestrator import OrcaOrchestrator
 from orchestration.synthesizer import OrcaSynthesizer
 from reasoning.schemas import ReasoningContext
 from reasoning.engine import OperationalReasoningEngine
+from evidence.service import EvidenceService
 
 _phase4_orchestrator = OrcaOrchestrator()
 _phase4_synthesizer = OrcaSynthesizer()
 _phase5_reasoning_engine = OperationalReasoningEngine()
+_phase6_evidence_service = EvidenceService()
 
-@app.post("/api/v2/orchestrate", response_model=OrcaResponse, tags=["Orchestration & Reasoning (Phase 4 & 5)"])
+@app.post("/api/v2/orchestrate", response_model=OrcaResponse, tags=["Orchestration, Reasoning & Evidence (Phase 4, 5, 6)"])
 async def orchestrate_marine_query(req: PlannerRequest):
     """
-    ORCA Phase 4 & 5 Intelligent Planner, Orchestration & Collaborative Reasoning Pipeline:
+    ORCA Phase 4, 5 & 6 Intelligent Planner, Orchestration, Collaborative Reasoning & Evidence Pipeline:
     Natural-language query -> Planner -> DAG ExecutionPlan -> Domain Agents ->
-    Collaborative Multi-Agent Reasoning -> Truthful Synthesis -> OrcaResponse.
+    Collaborative Multi-Agent Reasoning -> Evidence & RAG Grounding -> Truthful Synthesis -> OrcaResponse.
     """
     try:
         orch_result = await _phase4_orchestrator.orchestrate(req)
+
+        # Retrieve contextual reference evidence (Phase 6)
+        lang = req.context.get("language", "en") if req.context else "en"
+        evidence_ctx = _phase6_evidence_service.retrieve_context(req.query, language=lang)
+
         reasoning_ctx = ReasoningContext(
             query=req.query,
             intent=orch_result.plan.intent,
@@ -398,16 +405,18 @@ async def orchestrate_marine_query(req: PlannerRequest):
             evidence=orch_result.evidence,
             plan=orch_result.plan,
             timestamp=req.timestamp,
+            evidence_context=evidence_ctx,
         )
         reasoning_res = await _phase5_reasoning_engine.reason(reasoning_ctx)
+
         orca_response = await _phase4_synthesizer.synthesize(
-            orch_result, req, reasoning_result=reasoning_res
+            orch_result, req, reasoning_result=reasoning_res, evidence_context=evidence_ctx
         )
         return orca_response
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Orchestration & reasoning failure: {str(e)}",
+            detail=f"Orchestration, reasoning & evidence failure: {str(e)}",
         )
 
 

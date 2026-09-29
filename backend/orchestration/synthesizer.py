@@ -34,20 +34,26 @@ class OrcaSynthesizer:
         result: OrchestrationResult,
         request: PlannerRequest,
         reasoning_result: Optional[Any] = None,
+        evidence_context: Optional[Any] = None,
     ) -> OrcaResponse:
         """
         Produce a validated OrcaResponse with natural-language synthesis,
         deterministic confidence, preserved evidence, structured map actions,
-        and collaborative multi-agent reasoning (Phase 5).
+        collaborative multi-agent reasoning (Phase 5), and authoritative citations (Phase 6).
 
         Args:
             result: OrchestrationResult with all executed agent results.
             request: Initial PlannerRequest.
             reasoning_result: Optional Phase 5 ReasoningResult.
+            evidence_context: Optional Phase 6 EvidenceContext.
 
         Returns:
             OrcaResponse ready for frontend consumption or decision support.
         """
+        # Resolve evidence_context from reasoning_result if not passed explicitly
+        if evidence_context is None and reasoning_result is not None:
+            evidence_context = getattr(reasoning_result, "evidence_context", None)
+
         # 1. Collect data freshness states across all agents
         data_freshness: Dict[str, DataStatus] = {}
         for agent_name, agent_res in result.agent_results.items():
@@ -74,9 +80,14 @@ class OrcaSynthesizer:
                 if w not in combined_warnings:
                     combined_warnings.append(w)
 
-        # 5. Generate grounded natural-language answer
+        # 5. Extract citations if present
+        citations: List[Any] = []
+        if evidence_context is not None and hasattr(evidence_context, "citations"):
+            citations = list(evidence_context.citations)
+
+        # 6. Generate grounded natural-language answer
         answer = await self._generate_grounded_answer(
-            result, request, data_freshness, reasoning_result=reasoning_result
+            result, request, data_freshness, reasoning_result=reasoning_result, evidence_context=evidence_context
         )
 
         return OrcaResponse(
@@ -89,6 +100,8 @@ class OrcaSynthesizer:
             map_actions=map_actions,
             data_freshness=data_freshness,
             reasoning=reasoning_result,
+            citations=citations,
+            evidence_context=evidence_context,
         )
 
     def _calculate_deterministic_confidence(
@@ -239,6 +252,7 @@ class OrcaSynthesizer:
         request: PlannerRequest,
         data_freshness: Dict[str, DataStatus],
         reasoning_result: Optional[Any] = None,
+        evidence_context: Optional[Any] = None,
     ) -> str:
         """
         Synthesize the final answer using the LLM with strict factual grounding,
@@ -248,14 +262,14 @@ class OrcaSynthesizer:
         if self.llm_client is not None:
             try:
                 return await self._generate_llm_synthesis(
-                    result, request, data_freshness, reasoning_result=reasoning_result
+                    result, request, data_freshness, reasoning_result=reasoning_result, evidence_context=evidence_context
                 )
             except Exception:
                 # LLM synthesis failure -> safe fallback response preserving factual results
                 pass
 
         return self._generate_deterministic_synthesis(
-            result, request, data_freshness, reasoning_result=reasoning_result
+            result, request, data_freshness, reasoning_result=reasoning_result, evidence_context=evidence_context
         )
 
     async def _generate_llm_synthesis(
@@ -264,6 +278,7 @@ class OrcaSynthesizer:
         request: PlannerRequest,
         data_freshness: Dict[str, DataStatus],
         reasoning_result: Optional[Any] = None,
+        evidence_context: Optional[Any] = None,
     ) -> str:
         """Prompt the LLM with strict grounding constraints."""
         system_prompt = (
@@ -272,10 +287,11 @@ class OrcaSynthesizer:
             "CRITICAL OPERATIONAL RULES:\n"
             "1. You are a SYNTHESIZER, NOT A DATA SOURCE. You must ONLY use the facts provided in the AGENT RESULTS and REASONING FACTORS below.\n"
             "2. DO NOT invent, hallucinate, extrapolate, or fabricate any numbers, coordinates, wind speeds, wave heights, SST, or distances.\n"
-            "3. If an agent returned UNAVAILABLE or FAILED, explicitly state that the information is currently unavailable from official sources.\n"
-            "4. If PFZ or other telemetry has a historical reference date or is STALE, inform the mariner clearly of that provenance.\n"
-            "5. If GIS is UNAVAILABLE, state that official maritime boundary restriction clearance could not be verified.\n"
-            "6. Separate operational recommendations from uncertainty disclosures. Be clear, concise, and nautical."
+            "3. RAG/Contextual Reference material is for explanatory background only. NEVER use reference documents to replace or fabricate live telemetry numbers.\n"
+            "4. If an agent returned UNAVAILABLE or FAILED, explicitly state that the information is currently unavailable from official sources.\n"
+            "5. If PFZ or other telemetry has a historical reference date or is STALE, inform the mariner clearly of that provenance.\n"
+            "6. If GIS is UNAVAILABLE, state that official maritime boundary restriction clearance could not be verified.\n"
+            "7. Separate operational recommendations from uncertainty disclosures. Be clear, concise, and nautical."
         )
 
         facts_summary = self._format_agent_results_for_prompt(result, data_freshness)
@@ -283,12 +299,20 @@ class OrcaSynthesizer:
         if reasoning_result is not None:
             reasoning_summary = self._format_reasoning_for_prompt(reasoning_result)
 
+        ref_summary = ""
+        if evidence_context is not None and hasattr(evidence_context, "citations") and evidence_context.citations:
+            ref_lines = ["\nAUTHORITATIVE BACKGROUND REFERENCES (For context only — do NOT substitute live numbers):"]
+            for c in evidence_context.citations:
+                ref_lines.append(f"- {c.title} ({c.publisher}): \"{c.relevant_chunk[:200]}\"")
+            ref_summary = "\n".join(ref_lines)
+
         user_prompt = (
             f"Mariner Query: \"{request.query}\"\n"
             f"Vessel Position: ({request.latitude:.4f}, {request.longitude:.4f})\n"
             f"Detected Intent: {result.plan.intent}\n\n"
             f"VERIFIED AGENT RESULTS:\n{facts_summary}\n"
             f"{reasoning_summary}\n"
+            f"{ref_summary}\n\n"
             "Synthesize a clear, direct answer to the mariner's query based strictly on the verified facts above."
         )
 
@@ -369,6 +393,7 @@ class OrcaSynthesizer:
         request: PlannerRequest,
         data_freshness: Dict[str, DataStatus],
         reasoning_result: Optional[Any] = None,
+        evidence_context: Optional[Any] = None,
     ) -> str:
         """
         Factual deterministic synthesis engine.
@@ -521,5 +546,28 @@ class OrcaSynthesizer:
             if hasattr(reasoning_result, "required_followups") and reasoning_result.required_followups:
                 flw_text = "\n".join([f"• {f}" for f in reasoning_result.required_followups])
                 paragraphs.append(f"**Actionable Mariner Verification Checks:**\n{flw_text}")
+
+        # 11. Phase 6 Contextual Knowledge & Authoritative Reference Citations
+        citations = []
+        if evidence_context is not None and hasattr(evidence_context, "citations"):
+            citations = evidence_context.citations
+        elif reasoning_result is not None and hasattr(reasoning_result, "evidence_context"):
+            ev_ctx = getattr(reasoning_result, "evidence_context", None)
+            if ev_ctx is not None and hasattr(ev_ctx, "citations"):
+                citations = ev_ctx.citations
+
+        if citations:
+            status = getattr(evidence_context, "retrieval_status", None)
+            status_val = getattr(status, "value", str(status)) if status is not None else "SUCCESS"
+            if status_val == "SUCCESS":
+                citation_lines = []
+                for idx, c in enumerate(citations, 1):
+                    ref_suffix = f" — [{c.reference}]" if getattr(c, "reference", None) else ""
+                    auth_val = getattr(c.authority_level, "value", str(c.authority_level)) if hasattr(c, "authority_level") else "VERIFIED_REFERENCE"
+                    citation_lines.append(
+                        f"{idx}. **{c.title}** ({c.publisher}, Authority: `{auth_val}`){ref_suffix}\n"
+                        f"   *Guidance:* \"{c.relevant_chunk}\""
+                    )
+                paragraphs.append(f"**Authoritative References & Guidance:**\n" + "\n".join(citation_lines))
 
         return "\n\n".join(paragraphs)

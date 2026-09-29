@@ -90,6 +90,7 @@ class OperationalReasoningEngine:
             confidence=confidence,
             iteration_count=iteration_count,
             reasoning_graph=graph,
+            evidence_context=context.evidence_context,
         )
 
     def _can_refine_workflow(self, context: ReasoningContext) -> bool:
