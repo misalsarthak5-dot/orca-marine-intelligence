@@ -1,3 +1,4 @@
+import asyncio
 from typing import Dict, Any, List
 from .weather_service import get_weather_data
 from .marine_service import get_marine_data
@@ -138,8 +139,10 @@ async def calculate_safety_assessment(
     Supports both real-time telemetry ('now') and forecast-aware windows ('tomorrow_morning', 'tomorrow').
     Requires explicit latitude and longitude coordinates.
     """
-    weather = await get_weather_data(lat, lon)
-    marine = await get_marine_data(lat, lon)
+    weather, marine = await asyncio.gather(
+        get_weather_data(lat, lon),
+        get_marine_data(lat, lon),
+    )
 
     w_curr = weather.get("current", {})
     m_curr = marine.get("current", {})

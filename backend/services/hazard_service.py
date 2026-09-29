@@ -1,3 +1,4 @@
+import asyncio
 from typing import Dict, Any, List, Optional
 from .weather_service import get_weather_data
 from .marine_service import get_marine_data
@@ -182,8 +183,10 @@ async def evaluate_hazards(lat: float, lon: float) -> Dict[str, Any]:
     Compute transparent, real-time marine hazard assessment for any coastal point (lat, lon).
     Reuses existing Open-Meteo weather and marine telemetry services without fake data.
     """
-    weather_resp = await get_weather_data(lat=lat, lon=lon)
-    marine_resp = await get_marine_data(lat=lat, lon=lon)
+    weather_resp, marine_resp = await asyncio.gather(
+        get_weather_data(lat=lat, lon=lon),
+        get_marine_data(lat=lat, lon=lon),
+    )
 
     w_curr = weather_resp.get("current", {})
     m_curr = marine_resp.get("current", {})

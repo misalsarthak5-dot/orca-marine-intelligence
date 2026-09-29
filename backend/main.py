@@ -369,6 +369,48 @@ async def ask_orca(req: AskRequest):
             detail=f"Error executing ORCA reasoning workflow: {str(e)}",
         )
 
+# ==============================================================================
+# Phase 4 — Intelligent Planner & Orchestration Pipeline
+# ==============================================================================
+from orchestration.schemas import PlannerRequest, OrcaResponse
+from orchestration.orchestrator import OrcaOrchestrator
+from orchestration.synthesizer import OrcaSynthesizer
+from reasoning.schemas import ReasoningContext
+from reasoning.engine import OperationalReasoningEngine
+
+_phase4_orchestrator = OrcaOrchestrator()
+_phase4_synthesizer = OrcaSynthesizer()
+_phase5_reasoning_engine = OperationalReasoningEngine()
+
+@app.post("/api/v2/orchestrate", response_model=OrcaResponse, tags=["Orchestration & Reasoning (Phase 4 & 5)"])
+async def orchestrate_marine_query(req: PlannerRequest):
+    """
+    ORCA Phase 4 & 5 Intelligent Planner, Orchestration & Collaborative Reasoning Pipeline:
+    Natural-language query -> Planner -> DAG ExecutionPlan -> Domain Agents ->
+    Collaborative Multi-Agent Reasoning -> Truthful Synthesis -> OrcaResponse.
+    """
+    try:
+        orch_result = await _phase4_orchestrator.orchestrate(req)
+        reasoning_ctx = ReasoningContext(
+            query=req.query,
+            intent=orch_result.plan.intent,
+            agent_results=orch_result.agent_results,
+            evidence=orch_result.evidence,
+            plan=orch_result.plan,
+            timestamp=req.timestamp,
+        )
+        reasoning_res = await _phase5_reasoning_engine.reason(reasoning_ctx)
+        orca_response = await _phase4_synthesizer.synthesize(
+            orch_result, req, reasoning_result=reasoning_res
+        )
+        return orca_response
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Orchestration & reasoning failure: {str(e)}",
+        )
+
+
 if __name__ == "__main__":
     import uvicorn
     host = os.getenv("HOST", "0.0.0.0")

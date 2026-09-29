@@ -16,22 +16,44 @@ DO NOT fabricate or hardcode PFZ coordinates.
 
 import math
 import time
+import re
 from datetime import datetime, timezone
 import httpx
 from typing import Dict, Any, List, Optional, Tuple
 
 # Official INCOIS GeoServer WFS Base Endpoints
+INCOIS_PFZ_LINES_LAYER = "PFZ_Automation:pfzlines"
 INCOIS_PFZ_LINES_WFS = (
     "https://www.incois.gov.in/geoserver/PFZ_Automation/ows"
     "?service=WFS&version=1.1.0&request=GetFeature"
-    "&typeName=PFZ_Automation:pfzlines&outputFormat=application/json"
+    f"&typeName={INCOIS_PFZ_LINES_LAYER}&outputFormat=application/json"
 )
 
+INCOIS_LANDING_CENTRES_LAYER = "PFZ_LandingCentres:LandingCenters_29Apr2024"
 INCOIS_LANDING_CENTRES_WFS = (
     "https://www.incois.gov.in/geoserver/PFZ_LandingCentres/ows"
     "?service=WFS&version=1.1.0&request=GetFeature"
-    "&typeName=PFZ_LandingCentres:LandingCenters_29Apr2024&outputFormat=application/json"
+    f"&typeName={INCOIS_LANDING_CENTRES_LAYER}&outputFormat=application/json"
 )
+
+
+def extract_snapshot_date_from_layer(layer_identifier: Optional[str]) -> Optional[str]:
+    """
+    Extracts the published snapshot date directly from the official INCOIS GeoServer layer
+    or feature identifier string.
+    E.g. 'PFZ_LandingCentres:LandingCenters_29Apr2024' or 'LandingCenters_29Apr2024.1' -> '29-Apr-2024'
+    """
+    if not layer_identifier:
+        return None
+    match = re.search(r"(\d{1,2})([A-Za-z]{3})(\d{4})", str(layer_identifier))
+    if match:
+        day, mon, yr = match.groups()
+        return f"{int(day):02d}-{mon.capitalize()}-{yr}"
+    return None
+
+
+# Derived directly from upstream layer identifier configuration
+INCOIS_LANDING_CENTRES_SNAPSHOT_DATE = extract_snapshot_date_from_layer(INCOIS_LANDING_CENTRES_LAYER)
 
 # In-memory caching with 15-minute TTL to reduce upstream server load
 _CACHE: Dict[str, Any] = {}
@@ -90,7 +112,7 @@ def evaluate_validity(validity_str: Optional[str]) -> Tuple[bool, str, str]:
         if is_valid:
             return True, "CURRENT", f"{formatted_date} (Current Advisory)"
         else:
-            return False, "HISTORICAL_ARCHIVE", f"{formatted_date} (Historical INCOIS Advisory Cycle)"
+            return False, "HISTORICAL_REFERENCE", f"Landing-centre reference layer: {formatted_date} (Historical reference layer — not a current advisory date)"
     except Exception:
         return False, "UNPARSED", validity_str
 
@@ -177,6 +199,17 @@ async def get_pfz_assessment(lat: float, lon: float, max_radius_km: float = 250.
             # Evaluate advisory validity date freshness
             is_valid, val_status, val_formatted = evaluate_validity(props.get("VALIDITY_D"))
 
+            # Derive reference snapshot date:
+            # 1. From upstream feature ID (e.g. 'LandingCenters_29Apr2024.1')
+            # 2. From configured INCOIS layer identifier ('PFZ_LandingCentres:LandingCenters_29Apr2024')
+            feat_id = feat.get("id", "")
+            feat_snapshot_date = extract_snapshot_date_from_layer(feat_id) or INCOIS_LANDING_CENTRES_SNAPSHOT_DATE
+            feat_source_desc = (
+                f"Derived from upstream feature identifier ({feat_id})"
+                if feat_id and extract_snapshot_date_from_layer(feat_id)
+                else f"Derived from upstream layer identifier ({INCOIS_LANDING_CENTRES_LAYER})"
+            )
+
             active_advisories.append({
                 "id": f"incois-lc-{props.get('OBJECTID', '')}-{props.get('LC_UNIQUE_', '')}",
                 "landing_center": props.get("LC_NAME", "Unknown"),
@@ -197,10 +230,14 @@ async def get_pfz_assessment(lat: float, lon: float, max_radius_km: float = 250.
                 "is_currently_valid": is_valid,
                 "validity_status": val_status,
                 "updated_date": props.get("UPDATED_DA"),
-                "dataset_updated": "29-Apr-2024 (INCOIS GeoServer Layer)",
+                "is_historical_reference": True,
+                "reference_layer_date": feat_snapshot_date,
+                "reference_layer_source": feat_source_desc,
+                "current_advisory_validity": None,
+                "dataset_updated": f"{feat_snapshot_date} (INCOIS GeoServer Layer)",
                 "forecast_issue_id": props.get("FORECAST_I"),
-                "status": "OFFICIAL_ADVISORY",
-                "source": "INCOIS — Official PFZ Advisory",
+                "status": "HISTORICAL_REFERENCE",
+                "source": "INCOIS — Landing-Centre Reference Layer",
             })
 
     # Sort by distance from current vessel/assessment position
@@ -247,6 +284,19 @@ async def get_pfz_assessment(lat: float, lon: float, max_radius_km: float = 250.
     regional_lines.sort(key=lambda x: x["distance_km"])
     nationwide_lines.sort(key=lambda x: x["distance_km"])
 
+    # Determine current PFZ vector status dynamically from actual feature properties
+    sample_line = nationwide_lines[0] if nationwide_lines else (regional_lines[0] if regional_lines else None)
+    pfz_vector_status = "Current INCOIS PFZ vectors active"
+    pfz_vector_year = None
+    pfz_vector_julian_day = None
+    if sample_line:
+        pfz_vector_year = sample_line.get("year")
+        pfz_vector_julian_day = sample_line.get("julian_day")
+        if pfz_vector_year and pfz_vector_julian_day:
+            pfz_vector_status = f"Current INCOIS PFZ vectors active (Year {pfz_vector_year}, Julian Day {pfz_vector_julian_day})"
+        elif pfz_vector_year:
+            pfz_vector_status = f"Current INCOIS PFZ vectors active (Year {pfz_vector_year})"
+
     # Determine overall status and freshness
     nearest_advisory = active_advisories[0] if active_advisories else None
     has_pfz_data = len(nationwide_lines) > 0 or nearest_advisory is not None
@@ -254,9 +304,9 @@ async def get_pfz_assessment(lat: float, lon: float, max_radius_km: float = 250.
     advisory_available = nearest_advisory is not None
 
     if advisory_available:
-        advisory_message = f"Official INCOIS landing-centre advisory available for {nearest_advisory['landing_center']} sector."
+        advisory_message = f"INCOIS landing-centre reference target available for {nearest_advisory['landing_center']} sector (Historical reference layer: {INCOIS_LANDING_CENTRES_SNAPSHOT_DATE}). Current INCOIS PFZ vectors active on map."
     elif len(nationwide_lines) > 0:
-        advisory_message = "No localized INCOIS PFZ advisory currently identified. Regional INCOIS PFZ vectors are shown on the map."
+        advisory_message = "No localized INCOIS landing-centre reference target in this sector. Current INCOIS PFZ vectors are active on the map."
     else:
         advisory_message = "No official INCOIS PFZ vector data currently available."
 
@@ -282,20 +332,29 @@ async def get_pfz_assessment(lat: float, lon: float, max_radius_km: float = 250.
             "authority": "Indian National Centre for Ocean Information Services (INCOIS)",
             "ministry": "Ministry of Earth Sciences, Govt. of India",
             "service_type": "Multi-Mission Satellite Ocean Color & SST Thermal Fronts",
-            "dataset_updated": "29-Apr-2024",
-            "dataset_layer": "LandingCenters_29Apr2024 / PFZ_Automation:pfzlines",
-            "is_currently_valid": is_currently_valid,
-            "localized_advisory_status": "IDENTIFIED" if advisory_available else "NONE_IDENTIFIED",
+            "is_historical_reference": True if nearest_advisory else False,
+            "reference_layer_date": nearest_advisory.get("reference_layer_date") if nearest_advisory else INCOIS_LANDING_CENTRES_SNAPSHOT_DATE,
+            "reference_layer_source": nearest_advisory.get("reference_layer_source") if nearest_advisory else f"Derived from upstream layer identifier ({INCOIS_LANDING_CENTRES_LAYER})",
+            "current_advisory_validity": None,  # No verified current sector bulletin published by INCOIS
+            "pfz_vector_status": pfz_vector_status,
+            "pfz_vector_year": pfz_vector_year,
+            "pfz_vector_julian_day": pfz_vector_julian_day,
+            "dataset_updated": nearest_advisory.get("reference_layer_date") if nearest_advisory else INCOIS_LANDING_CENTRES_SNAPSHOT_DATE,
+            "dataset_layer": f"{INCOIS_LANDING_CENTRES_LAYER} (Reference) / {INCOIS_PFZ_LINES_LAYER} (Vectors)",
+            "is_currently_valid": False,  # Reference layer is historical
+            "localized_advisory_status": "REFERENCE_IDENTIFIED" if advisory_available else "NONE_IDENTIFIED",
             "regional_vectors_status": "AVAILABLE" if len(regional_lines) > 0 else "NONE_IN_REGION",
             "validity_date": nearest_advisory.get("validity_date") if nearest_advisory else None,
-            "validity_formatted": nearest_advisory.get("validity_formatted") if nearest_advisory else "Reference dataset / No sector bulletin",
+            "validity_formatted": nearest_advisory.get("validity_formatted") if nearest_advisory else "No localized sector bulletin",
             "validity_status": nearest_advisory.get("validity_status") if nearest_advisory else "NO_SECTOR_ADVISORY",
-            "pfz_lines_run": f"Julian Day {nationwide_lines[0]['julian_day']}, Year {nationwide_lines[0]['year']}" if nationwide_lines else None,
+            "pfz_lines_run": pfz_vector_status,
         },
         "provenance_note": (
             "PFZ data retrieved directly from official INCOIS GeoServer OGC WFS services. "
-            "Landing centre advisory vector records are from the official INCOIS 28-Apr-2024 bulletin cycle. "
-            "Automated PFZ frontal lines are from INCOIS PFZ_Automation. "
+            f"Satellite frontal lines are current INCOIS PFZ vectors from {INCOIS_PFZ_LINES_LAYER}. "
+            f"Landing centre records are from the historical reference layer ({INCOIS_LANDING_CENTRES_LAYER}), "
+            f"with snapshot date ({INCOIS_LANDING_CENTRES_SNAPSHOT_DATE}) derived directly from the layer identifier, "
+            "serving as geographic/navigational reference targets, not a current advisory bulletin. "
             "ORCA strictly distinguishes official government records from current validity and never fabricates dates."
         ),
     }

@@ -6,7 +6,7 @@ from .weather_service import get_weather_data
 from .marine_service import get_marine_data
 from .safety_service import calculate_safety_assessment
 from .hazard_service import evaluate_hazards
-from .pfz_service import get_pfz_assessment
+from .pfz_service import get_pfz_assessment, INCOIS_LANDING_CENTRES_SNAPSHOT_DATE
 from .route_service import analyze_routes_service
 
 from fastapi import HTTPException
@@ -658,95 +658,96 @@ async def process_orca_query(
             adv_dist_to = nearest.get("advisory_distance_to_km", "—")
             depth_from = nearest.get("depth_from_m", "—")
             depth_to = nearest.get("depth_to_m", "—")
-            validity_str = nearest.get("validity_formatted", "28-Apr-2024")
             target_dms = nearest.get("target_dms", {})
-            is_cur_valid = nearest.get("is_currently_valid", False)
-
-            if is_cur_valid:
-                validity_header = "Current Advisory"
-                freshness_note = "This advisory is currently valid according to INCOIS bulletin schedules."
-            else:
-                validity_header = "Historical Baseline Cycle (28-Apr-2024)"
-                freshness_note = (
-                    "Notice: No currently valid (same-day) INCOIS PFZ advisory is available for this location. "
-                    "The details below represent the official INCOIS advisory on record (Advisory validity: 28-Apr-2024 / Dataset updated: 29-Apr-2024) for baseline reference."
-                )
+            vector_status = meta.get("pfz_vector_status", "Current INCOIS PFZ vectors active")
+            ref_layer_date = nearest.get("reference_layer_date") or meta.get("reference_layer_date") or INCOIS_LANDING_CENTRES_SNAPSHOT_DATE or "Historical Reference Layer"
 
             if lang == "hi":
                 content = (
-                    f"आधिकारिक INCOIS संभावित मत्स्य पालन क्षेत्र (PFZ) सलाह — {loc_name}:\n\n"
-                    f"• लैंडिंग केंद्र: {lc_name} ({nearest.get('district', '')}, {nearest.get('sector', '')})\n"
-                    f"• {loc_name} से दूरी: लगभग {dist_km:.1f} किमी\n"
-                    f"• आधिकारिक दिशा / बेयरिंग: {adv_dist_from}–{adv_dist_to} किमी दिशा {direction} (बेयरिंग {bearing}°)\n"
-                    f"• अनुशंसित गहराई: {depth_from}–{depth_to} मीटर\n"
-                    f"• सलाह वैधता: {validity_str}\n"
-                    f"• डेटासेट अद्यतन: 29-Apr-2024 (INCOIS GeoServer)\n\n"
-                    f"{freshness_note}\n\n"
-                    "डेटा स्रोत: INCOIS — आधिकारिक PFZ सलाह (Ministry of Earth Sciences, Govt. of India)।\n"
-                    "महत्वपूर्ण: PFZ सलाह उपग्रह महासागर-रंग व थर्मल फ्रंट्स पर आधारित है; यह मछली पकड़ने की कोई गारंटी नहीं देती है।"
+                    f"आधिकारिक INCOIS संभावित मत्स्य पालन क्षेत्र (PFZ) संदर्भ — {loc_name}:\n\n"
+                    f"• 🎯 PFZ लक्ष्य संदर्भ (Target Reference): {lc_name} ({nearest.get('district', '')}, {nearest.get('sector', '')})\n"
+                    f"• 🌊 वर्तमान INCOIS PFZ वेक्टर्स: सक्रिय ({vector_status})\n"
+                    f"• 🧭 संदर्भ दिशा व बेयरिंग: {adv_dist_from}–{adv_dist_to} किमी दिशा {direction} (बेयरिंग {bearing}°)\n"
+                    f"• ⚓ परिचालन गहराई: {depth_from}–{depth_to} मीटर\n"
+                    f"• ⏳ वर्तमान बुलेटिन वैधता: इस तटीय क्षेत्र के लिए कोई नया बुलेटिन प्रकाशित नहीं है\n"
+                    f"• 📁 लैंडिंग केंद्र संदर्भ परत: {ref_layer_date} (ऐतिहासिक संदर्भ परत — यह वर्तमान सलाह तिथि नहीं है)\n\n"
+                    f"डेटा स्रोत विवरण: लैंडिंग केंद्र संदर्भ आधिकारिक INCOIS {ref_layer_date} संदर्भ डेटासेट से प्राप्त है जो भौगोलिक दिशा और गहराई का मार्गदर्शन करता है। वर्तमान उपग्रह फ्रंट रेखाएं मानचित्र पर सक्रिय हैं।\n\n"
+                    "डेटा स्रोत: INCOIS — पृथ्वी विज्ञान मंत्रालय, भारत सरकार (Ministry of Earth Sciences, Govt. of India)।\n"
+                    "महत्वपूर्ण: PFZ पहचान उपग्रह महासागर-रंग व थर्मल फ्रंट्स पर आधारित है; यह मछली पकड़ने की कोई गारंटी नहीं देती है।"
                 )
-                verdict_title = f"INCOIS PFZ सलाह — {lc_name.upper()}"
+                verdict_title = f"INCOIS PFZ संदर्भ — {lc_name.upper()}"
+                recommendation = (
+                    f"{lc_name} को भौगोलिक लक्ष्य संदर्भ के रूप में उपयोग करें ({adv_dist_from}–{adv_dist_to} किमी {direction})। "
+                    f"मानचित्र पर वर्तमान INCOIS PFZ वेक्टर्स और मौसम की स्थिति अवश्य जांचें।"
+                )
             elif lang == "mr":
                 content = (
-                    f"अधिकृत INCOIS संभाव्य मासेमारी क्षेत्र (PFZ) सल्ला — {loc_name}:\n\n"
-                    f"• लँडिंग केंद्र: {lc_name} ({nearest.get('district', '')}, {nearest.get('sector', '')})\n"
-                    f"• {loc_name} पासून अंतर: अंदाजे {dist_km:.1f} किमी\n"
-                    f"• अधिकृत दिशा: {adv_dist_from}–{adv_dist_to} किमी दिशा {direction} ({bearing}°)\n"
-                    f"• संभाव्य खोली: {depth_from}–{depth_to} मीटर\n"
-                    f"• सल्ला वैधता: {validity_str}\n"
-                    f"• डेटासेट अद्यतन: 29-Apr-2024 (INCOIS GeoServer)\n\n"
-                    f"{freshness_note}\n\n"
-                    "माहिती स्रोत: INCOIS — अधिकृत PFZ सल्ला (Ministry of Earth Sciences, Govt. of India).\n"
+                    f"अधिकृत INCOIS संभाव्य मासेमारी क्षेत्र (PFZ) संदर्भ — {loc_name}:\n\n"
+                    f"• 🎯 PFZ लक्ष्य संदर्भ (Target Reference): {lc_name} ({nearest.get('district', '')}, {nearest.get('sector', '')})\n"
+                    f"• 🌊 थेट INCOIS PFZ वेक्टर्स: सक्रिय ({vector_status})\n"
+                    f"• 🧭 संदर्भ दिशा: {adv_dist_from}–{adv_dist_to} किमी दिशा {direction} ({bearing}°)\n"
+                    f"• ⚓ संभाव्य खोली: {depth_from}–{depth_to} मीटर\n"
+                    f"• ⏳ थेट सल्ला वैधता: या क्षेत्रासाठी सध्या कोणताही नवा बुलेटिन प्रसिद्ध नाही\n"
+                    f"• 📁 लँडिंग केंद्र संदर्भ स्तर: {ref_layer_date} (ऐतिहासिक संदर्भ स्तर — ही चालू सल्ल्याची तारीख नाही)\n\n"
+                    f"माहिती स्रोत नोंद: लँडिंग केंद्र तपशील अधिकृत INCOIS {ref_layer_date} संदर्भ स्तरावरून दिशा व खोलीच्या संदर्भासाठी घेतला आहे. चालू उपग्रह फ्रंट रेषा नकाशावर उपलब्ध आहेत.\n\n"
+                    "माहिती स्रोत: INCOIS — पृथ्वी विज्ञान मंत्रालय, भारत सरकार (Ministry of Earth Sciences, Govt. of India).\n"
                     "टीप: PFZ सल्ला उपग्रह महासागर-रंग व तापमान फ्रंट्सवर आधारित आहे; ही मासे मिळण्याची कोणतीही हमी नाही."
                 )
-                verdict_title = f"INCOIS PFZ सल्ला — {lc_name.upper()}"
+                verdict_title = f"INCOIS PFZ संदर्भ — {lc_name.upper()}"
+                recommendation = (
+                    f"{lc_name} हा भौगोलिक संदर्भ म्हणून वापरावा ({adv_dist_from}–{adv_dist_to} किमी {direction}). "
+                    f"नकाशावरील थेट INCOIS PFZ वेक्टर्स व सागरी हवामानाची खात्री करूनच समुद्रात जावे."
+                )
             else:
                 content = (
-                    f"Official INCOIS Potential Fishing Zone (PFZ) Advisory for {loc_name} ({lat:.2f}°N, {lon:.2f}°E):\n\n"
-                    f"• 🎯 Official Landing Centre: {lc_name} ({nearest.get('district', '')}, {nearest.get('sector', '')})\n"
-                    f"• Distance from {loc_name}: ~{dist_km:.1f} km\n"
-                    f"• Advisory Vector: {adv_dist_from}–{adv_dist_to} km toward {direction} (Bearing: {bearing}°)\n"
-                    f"• Operational Depth: {depth_from}–{depth_to} m\n"
-                    f"• Target Position: {target_dms.get('latitude', '')}, {target_dms.get('longitude', '')}\n"
-                    f"• Advisory Validity: {validity_str}\n"
-                    f"• Dataset Updated: 29-Apr-2024 (INCOIS GeoServer Snapshot)\n\n"
-                    f"{freshness_note}\n\n"
-                    "Source: INCOIS — Official PFZ Advisory (Ministry of Earth Sciences, Govt. of India).\n"
+                    f"Official INCOIS Potential Fishing Zone (PFZ) Intelligence for {loc_name} ({lat:.2f}°N, {lon:.2f}°E):\n\n"
+                    f"• 🎯 PFZ Target Reference: {lc_name} ({nearest.get('district', '')}, {nearest.get('sector', '')})\n"
+                    f"• 🌊 Current INCOIS PFZ Vectors: {vector_status} ({lines_count} regional / {total_nationwide} nationwide)\n"
+                    f"• 🧭 Target Reference Vector: {adv_dist_from}–{adv_dist_to} km toward {direction} (Bearing: {bearing}° from {lc_name})\n"
+                    f"• ⚓ Shelf Depth Range: {depth_from}–{depth_to} m\n"
+                    f"• 📍 Target Position: {target_dms.get('latitude', '')}, {target_dms.get('longitude', '')}\n"
+                    f"• ⏳ Current Advisory Validity: None published for this sector (No same-day bulletin)\n"
+                    f"• 📁 Landing-Centre Reference Layer: {ref_layer_date} (Historical reference layer — not a current advisory date)\n\n"
+                    f"Provenance Notice: The landing-centre target ({lc_name}) is derived from the official INCOIS {ref_layer_date} reference layer to provide geographic bearing and depth guidance. "
+                    f"Current satellite thermal/chlorophyll frontal lines are displayed live as current INCOIS PFZ vectors.\n\n"
+                    "Source: INCOIS (Ministry of Earth Sciences, Govt. of India) • GeoServer WFS.\n"
                     "Notice: PFZ identification is based on multi-mission satellite ocean color & SST thermal front convergence. ORCA provides AI decision support over official government data; it is not a catch guarantee."
                 )
-                verdict_title = f"INCOIS PFZ ADVISORY — {lc_name.upper()}"
-
-            recommendation = (
-                f"INCOIS advisory on record for {lc_name} indicates potential aggregation {adv_dist_from}–{adv_dist_to} km {direction} (depth {depth_from}–{depth_to}m). "
-                f"Advisory validity: {validity_str}. Verify official marine weather and port warnings before departure."
-            )
+                verdict_title = f"INCOIS PFZ TARGET REFERENCE — {lc_name.upper()}"
+                recommendation = (
+                    f"Use {lc_name} as geographic target reference ({adv_dist_from}–{adv_dist_to} km {direction}, depth {depth_from}–{depth_to}m). "
+                    f"Cross-reference with current INCOIS PFZ vectors on the map and check official marine weather before sailing."
+                )
         else:
             # When lines exist or no active point advisory in radius
+            vector_status = meta.get("pfz_vector_status", "Current INCOIS PFZ vectors active")
             if lines_count > 0:
                 closest_line_dist = pfz_data['pfz_lines'][0]['distance_km']
                 closest_line_state = pfz_data['pfz_lines'][0].get('state_name', 'Coastal Sector')
                 content = (
                     f"Official INCOIS Potential Fishing Zones (PFZ) Status — {loc_name} ({lat:.2f}°N, {lon:.2f}°E):\n\n"
-                    f"• 📍 Localized Advisory: No localized INCOIS PFZ advisory currently identified for this coastal sector in the official bulletin cycle.\n"
-                    f"• 🌊 Regional PFZ Intelligence: {lines_count} official INCOIS PFZ vectors (satellite thermal/chlorophyll frontal lines) are available on the marine map ({closest_line_state}, nearest line ~{closest_line_dist} km).\n"
-                    f"• 📅 Dataset: INCOIS GeoServer WFS\n\n"
-                    "Recommendation: Review regional INCOIS PFZ vectors and current marine/weather conditions before selecting a fishing destination."
+                    f"• 📍 Localized Reference: No localized INCOIS landing-centre reference target identified in this sector.\n"
+                    f"• 🌊 Current INCOIS PFZ Vectors: {vector_status} — {lines_count} regional frontal lines mapped ({closest_line_state}, nearest ~{closest_line_dist} km).\n"
+                    f"• ⏳ Current Advisory Validity: None published for this sector\n"
+                    f"• 📅 Dataset Source: INCOIS GeoServer WFS (PFZ_Automation:pfzlines)\n\n"
+                    "Recommendation: Review current INCOIS PFZ vector lines and current marine conditions before sailing."
                 )
             else:
                 content = (
                     f"Official INCOIS Potential Fishing Zones (PFZ) Status — {loc_name} ({lat:.2f}°N, {lon:.2f}°E):\n\n"
-                    f"• 📍 Localized Advisory: No localized INCOIS PFZ advisory currently identified for this coast.\n"
-                    f"• 🌊 Regional PFZ Vectors: Official nationwide INCOIS PFZ frontal lines remain available on the marine map.\n"
-                    f"• 📅 Dataset: INCOIS GeoServer WFS\n\n"
-                    "Recommendation: Review regional INCOIS PFZ vectors and current marine/weather conditions before selecting a fishing destination."
+                    f"• 📍 Localized Reference: No localized INCOIS landing-centre reference target identified in this sector.\n"
+                    f"• 🌊 Current INCOIS PFZ Vectors: {vector_status} — Nationwide frontal lines active on the marine map.\n"
+                    f"• ⏳ Current Advisory Validity: None published for this sector\n"
+                    f"• 📅 Dataset Source: INCOIS GeoServer WFS (PFZ_Automation:pfzlines)\n\n"
+                    "Recommendation: Review current INCOIS PFZ vector lines and current marine conditions before sailing."
                 )
             verdict_title = f"INCOIS PFZ STATUS — {loc_name.upper()}"
-            recommendation = f"No localized INCOIS PFZ advisory currently identified for {loc_name}. Regional INCOIS PFZ vectors and current marine conditions remain available on the map."
+            recommendation = f"No localized INCOIS landing-centre reference target identified for {loc_name}. Current INCOIS PFZ vectors ({lines_count} regional lines) and marine conditions remain active on the map."
 
         return finalize({
             "intent": "pfz_discovery",
             "risk_level": "LOW",
-            "status": "INCOIS PFZ ADVISORY",
+            "status": "INCOIS PFZ INTELLIGENCE",
             "verdict_title": verdict_title,
             "content": content,
             "recommendation": recommendation,
@@ -757,16 +758,19 @@ async def process_orca_query(
                 "advisory_distance_km": f"{nearest.get('advisory_distance_from_km', '')}–{nearest.get('advisory_distance_to_km', '')} km" if nearest else None,
                 "bearing": f"{nearest.get('bearing_degrees', '')}° {nearest.get('direction', '')}" if nearest else None,
                 "depth_range": f"{nearest.get('depth_from_m', '')}–{nearest.get('depth_to_m', '')} m" if nearest else None,
-                "validity": nearest.get("validity_formatted") if nearest else meta.get("validity_formatted"),
-                "is_currently_valid": nearest.get("is_currently_valid", False) if nearest else False,
-                "dataset_updated": "29-Apr-2024",
+                "current_advisory_validity": None,
+                "validity": None,
+                "is_currently_valid": False,
+                "is_historical_reference": True if nearest else False,
+                "reference_layer_date": ref_layer_date if nearest else None,
+                "pfz_vector_status": vector_status,
                 "total_active_advisories": active_count,
                 "total_pfz_lines": lines_count,
             },
-            "source": ["INCOIS — Official PFZ Advisory (GeoServer WFS)", "ORCA Decision Support Engine"],
+            "source": ["INCOIS — GeoServer WFS (PFZ Vectors & Reference Layer)", "ORCA Decision Support Engine"],
             "map_actions": ["pfz"],
             "attachments": [
-                {"type": "pfz", "label": "View INCOIS PFZ Advisory"},
+                {"type": "pfz", "label": "View INCOIS PFZ Target Reference"},
                 {"type": "map", "label": "Show on Map", "layers": ["pfz"]},
             ],
         })
